@@ -1,2 +1,6 @@
 .env
 .vscode/launch.json
+
+# graphify
+graphify-out/
+.vscode/settings.json
