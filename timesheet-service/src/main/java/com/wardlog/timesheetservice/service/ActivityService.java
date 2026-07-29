@@ -28,9 +28,14 @@ import java.util.UUID;
 public class ActivityService {
 
     private final ActivityRepository activityRepository;
+    private final TimesheetClosureService timesheetClosureService;
 
     public ActivityResponse createActivity(CreateActivityRequest request) {
         Activity activity = toEntity(request);
+
+        // Closed-month enforcement point: an activity belongs to the month of its
+        // startDateTime only. Edit/delete will reuse this same guard when built.
+        timesheetClosureService.assertMonthOpenForActivity(request.getDoctorId(), request.getStartDateTime());
 
         if (activityRepository.existsOverlappingActivity(
                 request.getDoctorId(), request.getStartDateTime(), request.getEndDateTime(), null)) {

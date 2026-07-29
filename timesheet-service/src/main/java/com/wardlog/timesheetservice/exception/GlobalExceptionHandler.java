@@ -35,6 +35,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
 
+    @ExceptionHandler(MonthAlreadyClosedException.class)
+    public ResponseEntity<Map<String, Object>> handleMonthAlreadyClosed(MonthAlreadyClosedException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(ActivityInClosedMonthException.class)
+    public ResponseEntity<Map<String, Object>> handleActivityInClosedMonth(ActivityInClosedMonthException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleMethodArgumentNotValid(MethodArgumentNotValidException ex) {
         Map<String, String> details = new HashMap<>();
