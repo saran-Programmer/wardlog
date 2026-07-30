@@ -10,3 +10,5 @@ class AssistantState(TypedDict):
     route: str
     activities: list[Activity]
     followup_messages: list[str]
+    published_activities: list[Activity]
+    rejected_activities: list[Activity]

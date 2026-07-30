@@ -6,3 +6,4 @@ langchain-groq
 pydantic
 pydantic-settings
 python-dotenv
+neo4j

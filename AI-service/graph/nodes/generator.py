@@ -17,7 +17,7 @@ def generator_node(state: AssistantState, config: RunnableConfig):
             if k in DoctorContext.model_fields
         }
     )
-    system_prompt = GeneratorPrompt().build(doctor)
+    system_prompt = GeneratorPrompt().build(doctor, state)
 
     llm = get_llm(temperature=0.5)
     reply = llm.invoke([SystemMessage(content=system_prompt), *state["messages"]])

@@ -45,14 +45,17 @@ def extractor_node(state: AssistantState, config: RunnableConfig):
     )
 
     followup_messages = []
+
+    print("==============EXTRACTOR===================")
+    
     for activity in result.activities:
 
-        print(activity, end="/n")
+        print(activity, end="\n")
 
         if check_incomplete(activity):
             followup_messages.extend(build_followup_messages(activity))
 
-    print("\n")
+    print("=========================================")
 
     return {"activities": result.activities, "followup_messages": followup_messages}
 
