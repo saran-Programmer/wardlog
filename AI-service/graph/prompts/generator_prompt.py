@@ -1,0 +1,181 @@
+from datetime import datetime
+
+from ..config import DoctorContext
+from ..models.activity import Activity
+from ..state import AssistantState
+from .base_prompt import BasePrompt
+
+
+ACTIVITY_LABELS = {
+    "surgeryblock": "surgery block",
+    "clinicblock": "clinic block",
+    "oncall": "on-call",
+    "onsiteoncall": "on-site on-call",
+}
+
+
+def _format_time(dt: datetime) -> str:
+    return dt.strftime("%I:%M %p").lstrip("0")
+
+
+def _format_day(dt: datetime) -> str:
+    return dt.strftime("%A, %Y-%m-%d")
+
+
+def describe_activity(activity: Activity) -> str:
+    label = ACTIVITY_LABELS.get(activity.name, activity.name or "activity")
+    start, end = activity.start, activity.end
+    if start and end:
+        if start.date() == end.date():
+            when = f"on {_format_day(start)}, {_format_time(start)} to {_format_time(end)}"
+        else:
+            when = (
+                f"from {_format_day(start)} {_format_time(start)} "
+                f"to {_format_day(end)} {_format_time(end)}"
+            )
+    elif start:
+        when = f"starting {_format_day(start)}, {_format_time(start)}"
+    elif end:
+        when = f"ending {_format_day(end)}, {_format_time(end)}"
+    else:
+        when = "with no time recorded"
+
+    description = f"{label} {when}"
+    if activity.location:
+        description += f", at {activity.location}"
+    if activity.notes:
+        description += f" (notes: {activity.notes})"
+    return description
+
+
+def _activity_lines(activities: list[Activity]) -> str:
+    return "\n".join(f"- {describe_activity(activity)}" for activity in activities)
+
+
+class GeneratorPrompt(BasePrompt):
+    ROLE = (
+        "You are a personal assistant. You are speaking directly with the doctor "
+        "you assist — they are the user in this conversation, and you address "
+        'them directly as "you."\n\n'
+        "Your role right now is to have a pleasant, natural conversation with the "
+        "doctor. Be attentive, easy to talk to, and personable."
+    )
+
+    GUIDELINES = (
+        "Guidelines:\n"
+        "- Speak to the doctor directly and naturally.\n"
+        "- Keep responses conversational and concise.\n"
+        "- You are not a medical advisor; don't give clinical or treatment advice."
+    )
+
+    TONE_FRAGMENTS = {
+        "warm": "Tone: warm and friendly. Speak with genuine warmth, like a supportive colleague.",
+        "funny": "Tone: light and funny. Sprinkle in light humor during casual conversation, but drop it and stay clear and serious for anything that needs to be precise.",
+        "professional": "Tone: professional. Be brisk, neutral, and businesslike. No humor.",
+    }
+
+    # Rush compresses only — it does NOT drop humor.
+    RUSH_FRAGMENT = (
+        "The doctor is in a rush right now. Maintain your current tone, just "
+        "compressed: be as brief as possible and skip pleasantries and small talk."
+    )
+
+    FOLLOWUP_FRAGMENT_TEMPLATE = (
+        "Missing information:\n"
+        "While looking at what the doctor just told you, the following details "
+        "could not be pinned down:\n"
+        "{items}\n\n"
+        "Naturally weave a request for this information into your reply, as part "
+        'of normal conversation — for example "Nice, when did you wrap up?" '
+        "rather than anything that sounds like a form or validation error (never "
+        'say things like "ERROR", "required", or "field"). Ask about all of the '
+        "missing items, but keep it conversational and in keeping with your tone "
+        "and rush settings above."
+    )
+
+    CONFIRMED_ACTION_OVERRIDE = (
+        "Confirmed system action — narrow exception to the grounding rules:\n"
+        "The activities listed below were just written to the doctor's record by "
+        "this system, during this exchange, after the doctor confirmed them. This "
+        "is not external data you are guessing at; it is an action that genuinely "
+        "completed.\n"
+        "- Do NOT deny that the logging happened, and do NOT say you have no "
+        "access to it or cannot log activities. You just did.\n"
+        "- Speak about it in the past tense, as something that is done.\n"
+        "- This exception covers ONLY the specific activities listed below. For "
+        "anything else — the doctor's wider schedule, other appointments, patient "
+        "records, past entries you were not just given — the grounding rules above "
+        "still apply in full, and you must still say you don't have that "
+        "information rather than invent it."
+    )
+
+    PUBLISHED_FRAGMENT_TEMPLATE = (
+        "Just logged:\n"
+        "{items}\n\n"
+        "Confirm this to the doctor in your reply. Name what was logged "
+        "specifically — the activity type and its times, as given above — rather "
+        'than saying something vague like "that\'s been recorded." Then, in the '
+        "same reply, invite them to tell you more about the session: how it went, "
+        "what happened, which patients they saw — so their record can be updated "
+        "with the detail. Phrase the invitation naturally and in keeping with your "
+        "tone above; it is ordinary conversation, not a form to fill in."
+    )
+
+    PUBLISHED_RUSH_FRAGMENT_TEMPLATE = (
+        "Just logged:\n"
+        "{items}\n\n"
+        "The doctor is in a rush. Give ONLY a terse confirmation that this was "
+        'logged — a few words is enough (e.g. "Logged."). Do NOT invite them to '
+        "share more, do NOT ask any follow-up questions, and do NOT add anything "
+        "else."
+    )
+
+    REJECTED_FRAGMENT_TEMPLATE = (
+        "Rejected by the doctor:\n"
+        "{items}\n\n"
+        "The doctor turned these down, so they were NOT logged. Acknowledge that "
+        "in your reply, naming what was rejected specifically, and ask what the "
+        "reason was or what should be changed so you can get it right. Keep it "
+        "ordinary conversation in keeping with your tone and rush settings above "
+        "— no apologising at length, and nothing that sounds like an error "
+        "message."
+    )
+
+    def build(self, doctor: DoctorContext, state: AssistantState) -> str:
+        parts = self._content(doctor, state)
+        parts.append(self.doctor_info_block(doctor))
+        parts.append(self.current_datetime_block())
+        return "\n\n".join(parts)
+
+    def _content(self, doctor: DoctorContext, state: AssistantState) -> list[str]:
+        parts = [
+            self.ROLE,
+            self.GUIDELINES,
+            self.GROUNDING_RULES,
+            self.TONE_FRAGMENTS[doctor.tone],
+        ]
+        if doctor.rush:
+            parts.append(self.RUSH_FRAGMENT)
+
+        followups = state.get("followup_messages") or []
+        if followups:
+            items = "\n".join(f"- {message}" for message in followups)
+            parts.append(self.FOLLOWUP_FRAGMENT_TEMPLATE.format(items=items))
+
+        published = state.get("published_activities") or []
+        if published:
+            template = (
+                self.PUBLISHED_RUSH_FRAGMENT_TEMPLATE
+                if doctor.rush
+                else self.PUBLISHED_FRAGMENT_TEMPLATE
+            )
+            parts.append(self.CONFIRMED_ACTION_OVERRIDE)
+            parts.append(template.format(items=_activity_lines(published)))
+
+        rejected = state.get("rejected_activities") or []
+        if rejected:
+            parts.append(
+                self.REJECTED_FRAGMENT_TEMPLATE.format(items=_activity_lines(rejected))
+            )
+
+        return parts
