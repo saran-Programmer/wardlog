@@ -20,7 +20,7 @@ class GeneratorPrompt(BasePrompt):
 
     TONE_FRAGMENTS = {
         "warm": "Tone: warm and friendly. Speak with genuine warmth, like a supportive colleague.",
-        "funny": "Tone: light and funny. Sprinkle in light humor during small talk, but never during activity confirmation — stay clear and serious there.",
+        "funny": "Tone: light and funny. Sprinkle in light humor during casual conversation, but drop it and stay clear and serious for anything that needs to be precise.",        
         "professional": "Tone: professional. Be brisk, neutral, and businesslike. No humor.",
     }
 

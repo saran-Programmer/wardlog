@@ -34,11 +34,22 @@ class BasePrompt:
             dt=datetime.now().strftime("%A, %Y-%m-%d %H:%M")
         )
 
+    ASSISTANT_NAME_TEMPLATE = (
+        'Your name is "{assistant_name}". If the doctor asks your name, tell '
+        "them it's {assistant_name}."
+    )
+
+    def assistant_name_block(self, doctor: DoctorContext) -> str:
+        return self.ASSISTANT_NAME_TEMPLATE.format(
+            assistant_name=doctor.assistant_name
+        )
+
     def doctor_info_block(self, doctor: DoctorContext) -> str:
         lines = [
             f"Doctor ID: {doctor.id}",
             f"Name: {doctor.name}",
             f"Age: {doctor.age}",
+            f"sex: {doctor.sex}"
         ]
         if doctor.sex:
             lines.append(f"Sex: {doctor.sex}")
@@ -46,6 +57,7 @@ class BasePrompt:
 
     def build(self, doctor: DoctorContext) -> str:
         parts = self._content(doctor)
+        parts.append(self.assistant_name_block(doctor))
         parts.append(self.doctor_info_block(doctor))
         parts.append(self.current_datetime_block())
         return "\n\n".join(parts)
