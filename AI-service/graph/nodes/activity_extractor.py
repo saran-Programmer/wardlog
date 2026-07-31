@@ -28,7 +28,7 @@ def build_followup_messages(activity: Activity) -> list[str]:
     return messages
 
 
-def extractor_node(state: AssistantState, config: RunnableConfig):
+def activity_extractor_node(state: AssistantState, config: RunnableConfig):
     doctor = DoctorContext(
         **{
             k: v
@@ -56,7 +56,7 @@ def extractor_node(state: AssistantState, config: RunnableConfig):
     return {"activities": activities, "followup_messages": followup_messages}
 
 
-def route_after_extractor(state: AssistantState) -> str:
+def route_after_activity_extractor(state: AssistantState) -> str:
     activities = state["activities"]
     followup_messages = state["followup_messages"]
 

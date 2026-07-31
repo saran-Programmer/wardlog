@@ -14,15 +14,18 @@ from graph.nodes.confirmation import NODE_NAME as CONFIRMATION_NODE
 from graph.nodes.confirmation import confirmation_node
 from graph.nodes.detector import NODE_NAME as DETECTOR_NODE
 from graph.nodes.detector import detector_node, route_after_detector
-from graph.nodes.extractor import NODE_NAME as EXTRACTOR_NODE
-from graph.nodes.extractor import extractor_node, route_after_extractor
+from graph.nodes.activity_extractor import NODE_NAME as EXTRACTOR_NODE
+from graph.nodes.activity_extractor import (
+    activity_extractor_node,
+    route_after_activity_extractor,
+)
 from graph.nodes.generator import NODE_NAME as GENERATOR_NODE
 from graph.nodes.generator import generator_node
 from graph.state import AssistantState
 
 builder = StateGraph(AssistantState)
 builder.add_node(DETECTOR_NODE, detector_node)
-builder.add_node(EXTRACTOR_NODE, extractor_node)
+builder.add_node(EXTRACTOR_NODE, activity_extractor_node)
 builder.add_node(CONFIRMATION_NODE, confirmation_node)
 builder.add_node(GENERATOR_NODE, generator_node)
 
@@ -34,7 +37,7 @@ builder.add_conditional_edges(
 )
 builder.add_conditional_edges(
     EXTRACTOR_NODE,
-    route_after_extractor,
+    route_after_activity_extractor,
     {"confirmation": CONFIRMATION_NODE, "generator": GENERATOR_NODE},
 )
 builder.add_edge(CONFIRMATION_NODE, GENERATOR_NODE)
