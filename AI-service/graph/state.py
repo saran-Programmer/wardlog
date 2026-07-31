@@ -1,8 +1,9 @@
-from typing import Annotated, TypedDict
+from typing import Annotated, Optional, TypedDict
 
 from langgraph.graph.message import add_messages
 
 from .models.activity import Activity
+from .models.consultation import Consultation
 
 
 class AssistantState(TypedDict):
@@ -12,3 +13,4 @@ class AssistantState(TypedDict):
     followup_messages: list[str]
     published_activities: list[Activity]
     rejected_activities: list[Activity]
+    consultation: Optional[Consultation]

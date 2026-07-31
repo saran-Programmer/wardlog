@@ -9,7 +9,12 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command
 
 from db.graph_db import close_driver, verify_connection
-from graph.constants import ROUTE_CHAT, ROUTE_EXTRACT
+from graph.constants import (
+    IS_FOLLOWUP_MESSAGE,
+    ROUTE_CHAT,
+    ROUTE_EXTRACT,
+    ROUTE_PATIENT,
+)
 from graph.nodes.confirmation import NODE_NAME as CONFIRMATION_NODE
 from graph.nodes.confirmation import confirmation_node
 from graph.nodes.detector import NODE_NAME as DETECTOR_NODE
@@ -21,6 +26,8 @@ from graph.nodes.activity_extractor import (
 )
 from graph.nodes.generator import NODE_NAME as GENERATOR_NODE
 from graph.nodes.generator import generator_node
+from graph.nodes.consultation_extractor import NODE_NAME as CONSULTATION_EXTRACTOR_NODE
+from graph.nodes.consultation_extractor import consultation_extractor_node
 from graph.state import AssistantState
 
 builder = StateGraph(AssistantState)
@@ -28,12 +35,17 @@ builder.add_node(DETECTOR_NODE, detector_node)
 builder.add_node(EXTRACTOR_NODE, activity_extractor_node)
 builder.add_node(CONFIRMATION_NODE, confirmation_node)
 builder.add_node(GENERATOR_NODE, generator_node)
+builder.add_node(CONSULTATION_EXTRACTOR_NODE, consultation_extractor_node)
 
 builder.add_edge(START, DETECTOR_NODE)
 builder.add_conditional_edges(
     DETECTOR_NODE,
     route_after_detector,
-    {ROUTE_EXTRACT: EXTRACTOR_NODE, ROUTE_CHAT: GENERATOR_NODE},
+    {
+        ROUTE_EXTRACT: EXTRACTOR_NODE,
+        ROUTE_CHAT: GENERATOR_NODE,
+        ROUTE_PATIENT: CONSULTATION_EXTRACTOR_NODE,
+    },
 )
 builder.add_conditional_edges(
     EXTRACTOR_NODE,
@@ -41,6 +53,7 @@ builder.add_conditional_edges(
     {"confirmation": CONFIRMATION_NODE, "generator": GENERATOR_NODE},
 )
 builder.add_edge(CONFIRMATION_NODE, GENERATOR_NODE)
+builder.add_edge(CONSULTATION_EXTRACTOR_NODE, GENERATOR_NODE)
 builder.add_edge(GENERATOR_NODE, END)
 
 # Explicitly allowlisted so checkpoint (de)serialization doesn't warn/block on
@@ -57,8 +70,8 @@ DOCTOR_CONFIG = {
         "name": "Dr. Saran",
         "age": 23,
         "sex": "male",
-        "tone": "funny",
-        "rush": True,
+        "tone": "warm",
+        "rush": False,
         "assistant_name": "grok",
         "thread_id": "console-session",
     }
@@ -129,6 +142,9 @@ def main():
                 result = graph.invoke(Command(resume=resume_value), config=DOCTOR_CONFIG)
 
             messages = result["messages"]
+
+            is_followup = messages[-1].additional_kwargs.get(IS_FOLLOWUP_MESSAGE, False)
+            print(f"[is_followup_message: {is_followup}]")
 
             print(f"Assistant: {messages[-1].content}")
             print(end = "\n")

@@ -11,7 +11,7 @@ from .llm import get_llm
 NODE_NAME = "detector"
 
 class RouteDecision(BaseModel):
-    route: Literal["extract", "chat"]
+    route: Literal["extract", "patient", "chat"]
 
 
 def get_current_exchange(messages: list[BaseMessage]) -> list[BaseMessage]:
@@ -58,4 +58,9 @@ def detector_node(state: AssistantState):
 
 
 def route_after_detector(state: AssistantState) -> str:
-    return ROUTE_EXTRACT if state["route"] == ROUTE_EXTRACT else ROUTE_CHAT
+    route = state["route"]
+    if route == ROUTE_EXTRACT:
+        return ROUTE_EXTRACT
+    if route == "patient":
+        return "patient"
+    return ROUTE_CHAT
