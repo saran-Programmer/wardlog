@@ -2,7 +2,7 @@ from langchain_core.messages import SystemMessage
 from langchain_core.runnables import RunnableConfig
 
 from ..config import DoctorContext
-from ..models.activity import Activity, ActivityList, check_incomplete
+from ..models.activity import Activity, ExtractedActivityList, check_incomplete, compose
 from ..prompts.extractor_prompt import ExtractorPrompt
 from ..state import AssistantState
 from .llm import get_llm
@@ -38,26 +38,22 @@ def extractor_node(state: AssistantState, config: RunnableConfig):
     )
     system_prompt = ExtractorPrompt().build(doctor)
 
-    result = (
+    extracted = (
         get_llm(temperature=0)
-        .with_structured_output(ActivityList)
+        .with_structured_output(ExtractedActivityList)
         .invoke([SystemMessage(content=system_prompt), *state["messages"]])
     )
 
+    activities = [compose(e) for e in extracted.activities]
+
     followup_messages = []
 
-    print("==============EXTRACTOR===================")
-    
-    for activity in result.activities:
-
-        print(activity, end="\n")
+    for activity in activities:
 
         if check_incomplete(activity):
             followup_messages.extend(build_followup_messages(activity))
 
-    print("=========================================")
-
-    return {"activities": result.activities, "followup_messages": followup_messages}
+    return {"activities": activities, "followup_messages": followup_messages}
 
 
 def route_after_extractor(state: AssistantState) -> str:
