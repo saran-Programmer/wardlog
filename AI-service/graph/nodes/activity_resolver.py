@@ -4,6 +4,8 @@ from typing import Optional
 from langchain_core.messages import SystemMessage
 from langchain_core.runnables import RunnableConfig
 
+from db.activity_fetcher import find_activities
+
 from ..config import DoctorContext
 from ..models.activity_reference import ActivityReference
 from ..prompts.activity_resolver_prompt import ActivityResolverPrompt
@@ -65,9 +67,6 @@ def activity_resolver_node(state: AssistantState, config: RunnableConfig):
     lower, upper = _build_window(ref)
     activity_type = ref.activity_type
 
-    print(activity_type, lower, upper)
-
-    ## TODO: need to add the actual activity fetching logic
-    activities = []
+    activities = find_activities(doctor.id, activity_type, lower, upper)
 
     return {"activity_candidates": activities}
