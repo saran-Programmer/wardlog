@@ -24,6 +24,26 @@ ACTIVITY_EXTRACTOR_ROUTE = (
     '"did a couple of surgeries", "I have surgery blocks coming up".'
 )
 
+PATIENT_EXTRACTOR_ROUTE = (
+    'Route "patient" — the patient detail extractor.\n'
+    "Choose this ONLY when the doctor is describing a specific patient they "
+    "saw or treated. There must be an actual patient at the center of the "
+    "message — identified by name, age, sex, or clearly referred to as a "
+    "person they attended to.\n"
+    "Once a patient is clearly the subject, details attached to them — their "
+    "diagnosis, the drugs given, the surgery performed, how they are "
+    "recovering — are part of this same patient description.\n"
+    "Do NOT choose this route for a mention of a drug, condition, or procedure "
+    "on its own, with no specific patient attached. A general question about "
+    "medication, or the doctor talking about treatment in the abstract, is NOT "
+    "a patient description.\n"
+    'Examples (patient IS the subject): "the patient was Uma, 51, with a knee '
+    'replacement", "saw a 60-year-old man with an ACL tear", "she\'s on '
+    'metformin now and recovering well".\n'
+    'Counter-examples (NOT this route): "what is metformin used for", "how do '
+    'I log a diagnosis", "remind me about ACL protocols".'
+)
+
 CHAT_ROUTE = (
     'Route "chat" — the conversational generator.\n'
     "Choose this when the latest message is ordinary conversation "
@@ -46,9 +66,10 @@ LATEST_MESSAGE_FOCUS = (
 )
 
 CLOSING = (
-    "Pick exactly one route. If the latest message contains any information that "
-    "fits a specific route, prefer that route over 'chat' — it is better to "
-    "attempt handling and find nothing than to miss what the doctor mentioned.\n"
+    "Pick exactly one route based on what the latest message is primarily "
+    "about. If the message clearly fits 'extract' (the doctor's own activity) "
+    "or 'patient' (a specific patient they saw), prefer that over 'chat'. "
+    "Otherwise choose 'chat'.\n"
     "Do not explain your reasoning. Return only the route."
 )
 
@@ -56,6 +77,8 @@ DETECTOR_SYSTEM_PROMPT = (
     ASSISTANT_ROLE
     + "\n\n"
     + ACTIVITY_EXTRACTOR_ROUTE
+    + "\n\n"
+    + PATIENT_EXTRACTOR_ROUTE
     + "\n\n"
     + CHAT_ROUTE
     + "\n\n"

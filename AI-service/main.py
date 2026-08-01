@@ -3,48 +3,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from langchain_core.messages import HumanMessage
-from langgraph.checkpoint.memory import InMemorySaver
-from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
-from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command
 
-from db.graph_db import close_driver, verify_connection
-from graph.constants import ROUTE_CHAT, ROUTE_EXTRACT
-from graph.nodes.confirmation import NODE_NAME as CONFIRMATION_NODE
-from graph.nodes.confirmation import confirmation_node
-from graph.nodes.detector import NODE_NAME as DETECTOR_NODE
-from graph.nodes.detector import detector_node, route_after_detector
-from graph.nodes.extractor import NODE_NAME as EXTRACTOR_NODE
-from graph.nodes.extractor import extractor_node, route_after_extractor
-from graph.nodes.generator import NODE_NAME as GENERATOR_NODE
-from graph.nodes.generator import generator_node
-from graph.state import AssistantState
-
-builder = StateGraph(AssistantState)
-builder.add_node(DETECTOR_NODE, detector_node)
-builder.add_node(EXTRACTOR_NODE, extractor_node)
-builder.add_node(CONFIRMATION_NODE, confirmation_node)
-builder.add_node(GENERATOR_NODE, generator_node)
-
-builder.add_edge(START, DETECTOR_NODE)
-builder.add_conditional_edges(
-    DETECTOR_NODE,
-    route_after_detector,
-    {ROUTE_EXTRACT: EXTRACTOR_NODE, ROUTE_CHAT: GENERATOR_NODE},
-)
-builder.add_conditional_edges(
-    EXTRACTOR_NODE,
-    route_after_extractor,
-    {"confirmation": CONFIRMATION_NODE, "generator": GENERATOR_NODE},
-)
-builder.add_edge(CONFIRMATION_NODE, GENERATOR_NODE)
-builder.add_edge(GENERATOR_NODE, END)
-
-# Explicitly allowlisted so checkpoint (de)serialization doesn't warn/block on
-# our custom Activity model — see langgraph's LANGGRAPH_STRICT_MSGPACK gate.
-CHECKPOINT_SERDE = JsonPlusSerializer(
-    allowed_msgpack_modules=[("graph.models.activity", "Activity")]
-)
+from db.connection import close_driver, verify_connection
+from graph.build_graph import build_graph
+from graph.constants import IS_FOLLOWUP_MESSAGE
 
 # Sample doctor context for console testing — stands in for whatever will
 # eventually populate `configurable` from the real request/session.
@@ -54,8 +17,8 @@ DOCTOR_CONFIG = {
         "name": "Dr. Saran",
         "age": 23,
         "sex": "male",
-        "tone": "funny",
-        "rush": True,
+        "tone": "warm",
+        "rush": False,
         "assistant_name": "grok",
         "thread_id": "console-session",
     }
@@ -110,7 +73,7 @@ def main():
 
     verify_connection()
     try:
-        graph = builder.compile(checkpointer=InMemorySaver(serde=CHECKPOINT_SERDE))
+        graph = build_graph()
 
         while True:
             user_input = input("You: ").strip()
@@ -126,6 +89,9 @@ def main():
                 result = graph.invoke(Command(resume=resume_value), config=DOCTOR_CONFIG)
 
             messages = result["messages"]
+
+            is_followup = messages[-1].additional_kwargs.get(IS_FOLLOWUP_MESSAGE, False)
+            print(f"[is_followup_message: {is_followup}]")
 
             print(f"Assistant: {messages[-1].content}")
             print(end = "\n")

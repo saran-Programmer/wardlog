@@ -4,7 +4,7 @@ from uuid import uuid4
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import interrupt
 
-from db.graph_db import write_logged_activity
+from db.activity_saver import write_logged_activity
 
 from ..config import DoctorContext
 from ..models.activity import Activity
