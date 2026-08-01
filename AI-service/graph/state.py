@@ -10,6 +10,7 @@ class AssistantState(TypedDict):
     messages: Annotated[list, add_messages]
     route: str
     activities: list[Activity]
+    activity_candidates: list[Activity]
     followup_messages: list[str]
     published_activities: list[Activity]
     rejected_activities: list[Activity]

@@ -44,10 +44,6 @@ def detector_node(state: AssistantState):
     messages = [SystemMessage(content=DETECTOR_SYSTEM_PROMPT), *exchange]
     decision = get_llm().with_structured_output(RouteDecision).invoke(messages)
 
-    print("=============================")
-    print(decision.route)
-    print("=============================")
-
     return {
         "route": decision.route,
         "activities": [],
