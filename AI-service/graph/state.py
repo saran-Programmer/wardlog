@@ -15,3 +15,5 @@ class AssistantState(TypedDict):
     published_activities: list[Activity]
     rejected_activities: list[Activity]
     consultation: Optional[Consultation]
+    return_to: Optional[str]
+    resolved_activity_id: Optional[str]

@@ -3,6 +3,7 @@ from typing import Optional
 
 from langchain_core.messages import SystemMessage
 from langchain_core.runnables import RunnableConfig
+from langgraph.types import Command
 
 from db.activity_fetcher import find_activities
 
@@ -69,4 +70,4 @@ def activity_resolver_node(state: AssistantState, config: RunnableConfig):
 
     activities = find_activities(doctor.id, activity_type, lower, upper)
 
-    return {"activity_candidates": activities}
+    return Command(goto=state["return_to"], update={"activity_candidates": activities})
