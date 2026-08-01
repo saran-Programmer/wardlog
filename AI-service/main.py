@@ -8,9 +8,10 @@ from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command
 
-from db.graph_db import close_driver, verify_connection
+from db.connection import close_driver, verify_connection
 from graph.constants import (
     IS_FOLLOWUP_MESSAGE,
+    ROUTE_ACTIVITY_RESOLVER,
     ROUTE_CHAT,
     ROUTE_EXTRACT,
     ROUTE_PATIENT,
@@ -28,6 +29,8 @@ from graph.nodes.generator import NODE_NAME as GENERATOR_NODE
 from graph.nodes.generator import generator_node
 from graph.nodes.consultation_extractor import NODE_NAME as CONSULTATION_EXTRACTOR_NODE
 from graph.nodes.consultation_extractor import consultation_extractor_node
+from graph.nodes.activity_resolver import NODE_NAME as ACTIVITY_RESOLVER_NODE
+from graph.nodes.activity_resolver import activity_resolver_node
 from graph.state import AssistantState
 
 builder = StateGraph(AssistantState)
@@ -36,6 +39,7 @@ builder.add_node(EXTRACTOR_NODE, activity_extractor_node)
 builder.add_node(CONFIRMATION_NODE, confirmation_node)
 builder.add_node(GENERATOR_NODE, generator_node)
 builder.add_node(CONSULTATION_EXTRACTOR_NODE, consultation_extractor_node)
+builder.add_node(ACTIVITY_RESOLVER_NODE, activity_resolver_node)
 
 builder.add_edge(START, DETECTOR_NODE)
 builder.add_conditional_edges(
@@ -45,6 +49,7 @@ builder.add_conditional_edges(
         ROUTE_EXTRACT: EXTRACTOR_NODE,
         ROUTE_CHAT: GENERATOR_NODE,
         ROUTE_PATIENT: CONSULTATION_EXTRACTOR_NODE,
+        ROUTE_ACTIVITY_RESOLVER: ACTIVITY_RESOLVER_NODE,
     },
 )
 builder.add_conditional_edges(
@@ -54,6 +59,7 @@ builder.add_conditional_edges(
 )
 builder.add_edge(CONFIRMATION_NODE, GENERATOR_NODE)
 builder.add_edge(CONSULTATION_EXTRACTOR_NODE, GENERATOR_NODE)
+builder.add_edge(ACTIVITY_RESOLVER_NODE, GENERATOR_NODE)
 builder.add_edge(GENERATOR_NODE, END)
 
 # Explicitly allowlisted so checkpoint (de)serialization doesn't warn/block on

@@ -1,14 +1,7 @@
-import os
-
-from neo4j import GraphDatabase
-
 from graph.config import DoctorContext
 from graph.models.activity import Activity
 
-driver = GraphDatabase.driver(
-    os.environ["NEO4J_URI"],
-    auth=(os.environ["NEO4J_USERNAME"], os.environ["NEO4J_PASSWORD"]),
-)
+from .connection import driver
 
 _WRITE_LOGGED_ACTIVITY_QUERY = """
 MERGE (d:Doctor {id: $doctor_id})
@@ -21,14 +14,6 @@ MERGE (a:Activity {id: $activity_id})
       a.notes = $activity_notes
 MERGE (d)-[:LOGGED]->(a)
 """
-
-
-def verify_connection() -> None:
-    driver.verify_connectivity()
-
-
-def close_driver() -> None:
-    driver.close()
 
 
 def write_logged_activity(doctor: DoctorContext, activity: Activity) -> None:
