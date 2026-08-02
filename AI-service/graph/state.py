@@ -1,4 +1,4 @@
-from typing import Annotated, Optional, TypedDict
+from typing import Annotated, NotRequired, Optional, TypedDict
 
 from langgraph.graph.message import add_messages
 
@@ -17,3 +17,4 @@ class AssistantState(TypedDict):
     consultation: Optional[Consultation]
     return_to: Optional[str]
     resolved_activity_id: Optional[str]
+    consultation_saved: NotRequired[Optional[Consultation]]

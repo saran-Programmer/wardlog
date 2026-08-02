@@ -6,6 +6,8 @@ from .constants import (
     IS_FOLLOWUP_MESSAGE,
     ROUTE_ACTIVITY_RESOLVER,
     ROUTE_CHAT,
+    ROUTE_CONFIRMATION,
+    ROUTE_CONSULTATION_SAVER,
     ROUTE_EXTRACT,
     ROUTE_GENERATOR,
     ROUTE_PATIENT,
@@ -32,6 +34,8 @@ from .nodes.patient_orchestrator import (
     patient_orchestrator_node,
     route_after_orchestrator,
 )
+from .nodes.consultation_saver import NODE_NAME as CONSULTATION_SAVER_NODE
+from .nodes.consultation_saver import consultation_saver_node
 from .state import AssistantState
 
 # Explicitly allowlisted so checkpoint (de)serialization doesn't warn/block on
@@ -50,6 +54,7 @@ def build_graph():
     builder.add_node(CONSULTATION_EXTRACTOR_NODE, consultation_extractor_node)
     builder.add_node(ACTIVITY_RESOLVER_NODE, activity_resolver_node)
     builder.add_node(ORCHESTRATOR_NODE, patient_orchestrator_node)
+    builder.add_node(CONSULTATION_SAVER_NODE, consultation_saver_node)
 
     builder.add_edge(START, DETECTOR_NODE)
     builder.add_conditional_edges(
@@ -64,7 +69,7 @@ def build_graph():
     builder.add_conditional_edges(
         EXTRACTOR_NODE,
         route_after_activity_extractor,
-        {"confirmation": CONFIRMATION_NODE, "generator": GENERATOR_NODE},
+        {ROUTE_CONFIRMATION: CONFIRMATION_NODE, ROUTE_GENERATOR: GENERATOR_NODE},
     )
     builder.add_conditional_edges(
         ORCHESTRATOR_NODE,
@@ -73,10 +78,12 @@ def build_graph():
             ROUTE_ACTIVITY_RESOLVER: ACTIVITY_RESOLVER_NODE,
             ROUTE_PATIENT_EXTRACTOR: CONSULTATION_EXTRACTOR_NODE,
             ROUTE_PATIENT_ORCHESTRATOR: ORCHESTRATOR_NODE,
+            ROUTE_CONSULTATION_SAVER: CONSULTATION_SAVER_NODE,
             ROUTE_GENERATOR: GENERATOR_NODE,
         },
     )
     builder.add_edge(CONSULTATION_EXTRACTOR_NODE, ORCHESTRATOR_NODE)
+    builder.add_edge(CONSULTATION_SAVER_NODE, GENERATOR_NODE)
     builder.add_edge(CONFIRMATION_NODE, GENERATOR_NODE)
     builder.add_edge(GENERATOR_NODE, END)
 

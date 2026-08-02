@@ -8,7 +8,9 @@ ROUTE_PATIENT = "patient"
 ROUTE_ACTIVITY_RESOLVER = "activity_resolver"
 ROUTE_PATIENT_EXTRACTOR = "patient_extractor"
 ROUTE_PATIENT_ORCHESTRATOR = "patient_orchestrator"
+ROUTE_CONSULTATION_SAVER = "consultation_saver"
 ROUTE_GENERATOR = "generator"
+ROUTE_CONFIRMATION = "confirmation"
 
 # Patient orchestrator: max number of activity candidates to present to the
 # doctor for disambiguation before asking them to narrow the search instead.

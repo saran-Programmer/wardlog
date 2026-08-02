@@ -7,6 +7,7 @@ from ..constants import (
     CHOICE_QUERY,
     MAX_DISAMBIGUATION_CANDIDATES,
     ROUTE_ACTIVITY_RESOLVER,
+    ROUTE_CONSULTATION_SAVER,
     ROUTE_GENERATOR,
     ROUTE_PATIENT_EXTRACTOR,
 )
@@ -79,11 +80,6 @@ def patient_orchestrator_node(state: AssistantState, config: RunnableConfig):
             ],
         }
 
-    if state.get("consultation") is None:
-        return {}
-
-    print(f"Resolved activity id: {resolved_activity_id}")
-    print(f"Consultation: {state['consultation']}")
     return {}
 
 
@@ -100,4 +96,4 @@ def route_after_orchestrator(state: AssistantState) -> str:
     if state.get("consultation") is None:
         return ROUTE_PATIENT_EXTRACTOR
 
-    return ROUTE_GENERATOR
+    return ROUTE_CONSULTATION_SAVER

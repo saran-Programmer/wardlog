@@ -2,6 +2,7 @@ from langchain_core.messages import SystemMessage
 from langchain_core.runnables import RunnableConfig
 
 from ..config import DoctorContext
+from ..constants import ROUTE_CONFIRMATION, ROUTE_GENERATOR
 from ..models.activity import Activity, ExtractedActivityList, check_incomplete, compose
 from ..prompts.extractor_prompt import ExtractorPrompt
 from ..state import AssistantState
@@ -61,6 +62,6 @@ def route_after_activity_extractor(state: AssistantState) -> str:
     followup_messages = state["followup_messages"]
 
     if activities and not followup_messages:
-        return "confirmation"
+        return ROUTE_CONFIRMATION
 
-    return "generator"
+    return ROUTE_GENERATOR
