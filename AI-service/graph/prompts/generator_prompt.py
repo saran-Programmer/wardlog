@@ -2,6 +2,7 @@ from datetime import datetime
 
 from ..config import DoctorContext
 from ..models.activity import Activity
+from ..models.consultation import Consultation
 from ..state import AssistantState
 from .base_prompt import BasePrompt
 
@@ -50,6 +51,34 @@ def describe_activity(activity: Activity) -> str:
 
 def _activity_lines(activities: list[Activity]) -> str:
     return "\n".join(f"- {describe_activity(activity)}" for activity in activities)
+
+
+def describe_consultation(consultation: Consultation) -> str:
+    """Render a saved consultation factually, so the reply names what was written."""
+    lines = []
+
+    patient = consultation.patient
+    if patient is not None and patient.name:
+        who = patient.name
+        details = []
+        if patient.age is not None:
+            details.append(f"{patient.age}")
+        if patient.sex:
+            details.append(patient.sex)
+        if details:
+            who += f" ({', '.join(details)})"
+        lines.append(f"Patient: {who}")
+
+    if consultation.diagnoses:
+        lines.append("Diagnoses: " + ", ".join(consultation.diagnoses))
+
+    if consultation.drugs:
+        lines.append("Drugs: " + ", ".join(consultation.drugs))
+
+    if consultation.surgery_type:
+        lines.append(f"Surgery type: {consultation.surgery_type}")
+
+    return "\n".join(f"- {line}" for line in lines)
 
 
 class GeneratorPrompt(BasePrompt):
@@ -130,6 +159,25 @@ class GeneratorPrompt(BasePrompt):
         "else."
     )
 
+    CONSULTATION_SAVED_FRAGMENT_TEMPLATE = (
+        "Confirmed system action — patient record just written:\n"
+        "The details below were just written to the doctor's record by this system, "
+        "during this exchange. This is not external data you are guessing at; it is "
+        "an action that genuinely completed.\n"
+        "{items}\n\n"
+        "- Do NOT deny that this was recorded, and do NOT say you have no access to "
+        "patient records or cannot record patient information. You just did.\n"
+        "- Speak about it in the past tense, as something that is done.\n"
+        "- Confirm it to the doctor by naming what was captured specifically — the "
+        "patient, and any diagnoses, drugs, or surgery type listed above — rather "
+        "than saying something vague like \"that's been recorded.\"\n"
+        "- This exception covers ONLY what is listed above. For anything else — the "
+        "patient's wider history, other records, past entries you were not just "
+        "given — the grounding rules still apply in full.\n"
+        "- You are not a medical advisor; do not give clinical or treatment advice "
+        "about what was recorded."
+    )
+
     REJECTED_FRAGMENT_TEMPLATE = (
         "Rejected by the doctor:\n"
         "{items}\n\n"
@@ -156,6 +204,14 @@ class GeneratorPrompt(BasePrompt):
         ]
         if doctor.rush:
             parts.append(self.RUSH_FRAGMENT)
+
+        consultation_saved = state.get("consultation_saved")
+        if consultation_saved:
+            parts.append(
+                self.CONSULTATION_SAVED_FRAGMENT_TEMPLATE.format(
+                    items=describe_consultation(consultation_saved)
+                )
+            )
 
         followups = state.get("followup_messages") or []
         if followups:

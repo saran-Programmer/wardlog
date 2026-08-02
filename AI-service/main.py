@@ -7,7 +7,7 @@ from langgraph.types import Command
 
 from db.connection import close_driver, verify_connection
 from graph.build_graph import build_graph
-from graph.constants import IS_FOLLOWUP_MESSAGE
+from graph.constants import CHOICE_QUERY, IS_FOLLOWUP_MESSAGE
 
 # Sample doctor context for console testing — stands in for whatever will
 # eventually populate `configurable` from the real request/session.
@@ -67,6 +67,32 @@ def prompt_for_decisions(payload):
     return {"decisions": decisions}
 
 
+def prompt_for_activity_choice(payload):
+    options = payload["options"]
+    allow_query = payload.get("allow_query", False)
+
+    print("\nMultiple matching activities were found:")
+    for option in options:
+        print(
+            f"\n[{option['index']}] {option['type']} | "
+            f"{option['start']} -> {option['end']} | "
+            f"location={option['location']} | notes={option['notes']}"
+        )
+
+    prompt = "  pick an index"
+    if allow_query:
+        prompt += " (or type a question to narrow it down)"
+    prompt += ": "
+
+    choice = input(prompt).strip()
+
+    if allow_query and not choice.isdigit():
+        return {"choice": CHOICE_QUERY, "text": choice}
+
+    selected = options[int(choice)]
+    return {"choice": selected["id"]}
+
+
 def main():
     print("WardLog console — type 'exit' to quit.")
     messages = []
@@ -85,7 +111,10 @@ def main():
 
             while "__interrupt__" in result:
                 payload = result["__interrupt__"][0].value
-                resume_value = prompt_for_decisions(payload)
+                if isinstance(payload, dict) and "options" in payload:
+                    resume_value = prompt_for_activity_choice(payload)
+                else:
+                    resume_value = prompt_for_decisions(payload)
                 result = graph.invoke(Command(resume=resume_value), config=DOCTOR_CONFIG)
 
             messages = result["messages"]
