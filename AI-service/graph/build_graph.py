@@ -12,6 +12,8 @@ from .constants import (
     ROUTE_EXTRACT,
     ROUTE_GENERATOR,
     ROUTE_PATIENT,
+    ROUTE_PATIENT_DETAILS,
+    ROUTE_PATIENT_DETAILS_GENERATOR,
     ROUTE_PATIENT_EXTRACTOR,
     ROUTE_PATIENT_ORCHESTRATOR,
     ROUTE_REPORT_EXTRACTOR,
@@ -47,6 +49,15 @@ from .nodes.report_extractor import (
 )
 from .nodes.report_saver import NODE_NAME as REPORT_SAVER_NODE
 from .nodes.report_saver import report_saver_node
+from .nodes.patient_details_fetcher import NODE_NAME as PATIENT_DETAILS_FETCHER_NODE
+from .nodes.patient_details_fetcher import (
+    patient_details_fetcher_node,
+    route_after_patient_details_fetcher,
+)
+from .nodes.patient_details_generator import (
+    NODE_NAME as PATIENT_DETAILS_GENERATOR_NODE,
+)
+from .nodes.patient_details_generator import patient_details_generator_node
 from .state import AssistantState
 
 # Explicitly allowlisted so checkpoint (de)serialization doesn't warn/block on
@@ -56,6 +67,7 @@ CHECKPOINT_SERDE = JsonPlusSerializer(
         ("graph.models.activity", "Activity"),
         ("graph.models.consultation", "Consultation"),
         ("graph.models.report_extraction", "ReportExtraction"),
+        ("graph.models.patient_details", "PatientDetails"),
     ]
 )
 
@@ -72,6 +84,8 @@ def build_graph():
     builder.add_node(CONSULTATION_SAVER_NODE, consultation_saver_node)
     builder.add_node(REPORT_EXTRACTOR_NODE, report_extractor_node)
     builder.add_node(REPORT_SAVER_NODE, report_saver_node)
+    builder.add_node(PATIENT_DETAILS_FETCHER_NODE, patient_details_fetcher_node)
+    builder.add_node(PATIENT_DETAILS_GENERATOR_NODE, patient_details_generator_node)
 
     builder.add_conditional_edges(
         START,
@@ -97,8 +111,18 @@ def build_graph():
             ROUTE_EXTRACT: EXTRACTOR_NODE,
             ROUTE_CHAT: GENERATOR_NODE,
             ROUTE_PATIENT: ORCHESTRATOR_NODE,
+            ROUTE_PATIENT_DETAILS: PATIENT_DETAILS_FETCHER_NODE,
         },
     )
+    builder.add_conditional_edges(
+        PATIENT_DETAILS_FETCHER_NODE,
+        route_after_patient_details_fetcher,
+        {
+            ROUTE_GENERATOR: GENERATOR_NODE,
+            ROUTE_PATIENT_DETAILS_GENERATOR: PATIENT_DETAILS_GENERATOR_NODE,
+        },
+    )
+    builder.add_edge(PATIENT_DETAILS_GENERATOR_NODE, GENERATOR_NODE)
     builder.add_conditional_edges(
         EXTRACTOR_NODE,
         route_after_activity_extractor,
