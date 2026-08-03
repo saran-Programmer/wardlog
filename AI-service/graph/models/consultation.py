@@ -5,7 +5,15 @@ from pydantic import BaseModel, Field
 
 class Patient(BaseModel):
 
-    name: str = Field(description="the patient's name")
+    name: str = Field(
+        description=(
+            "the patient's name, captured in full as given — do not truncate to "
+            "the first name only. If only a first name is given, use just that. "
+            "If a first and last name are both given, include both. If a first "
+            'name plus an initial is given (e.g. "Uma R"), include the initial '
+            "as given."
+        )
+    )
 
     age: Optional[int] = Field(default=None, description="the patient's age as stated")
 

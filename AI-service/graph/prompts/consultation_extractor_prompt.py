@@ -13,7 +13,15 @@ class ConsultationExtractorPrompt(BasePrompt):
 
     PATIENT_FIELDS = (
         "Patient (required): the patient's name (required), and their age and "
-        "sex if stated.\n"
+        "sex if stated. Capture the full name exactly as given — do not "
+        "truncate to the first name only:\n"
+        "- If only a first name is given, use just that first name.\n"
+        "- If a first and last name are both given, include both.\n"
+        "- If a first name plus an initial is given (e.g. \"Uma R\"), include "
+        "the initial as given.\n"
+        "Give the bare name only — strip honorifics/titles such "
+        'as Mr., Mrs., Ms., Miss, Master, Dr., or Prof. (e.g. "Saran G", not '
+        '"Mr. Saran G").\n'
         "- diagnoses: the condition(s) the patient was diagnosed with, as a "
         "list of short names.\n"
         "- drugs: any medication given or prescribed, as a list of names "

@@ -1,3 +1,5 @@
+import re
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -7,15 +9,34 @@ from langgraph.types import Command
 
 from db.connection import close_driver, verify_connection
 from graph.build_graph import build_graph
-from graph.constants import CHOICE_QUERY, IS_FOLLOWUP_MESSAGE
+from graph.constants import CHOICE_QUERY, FILE_PATH_KEY, IS_FOLLOWUP_MESSAGE
+
+# Dev-only CLI input format: `file (path/to/report.pdf): message text`.
+FILE_INPUT_PATTERN = re.compile(r"^file\s*\((?P<path>[^)]+)\)\s*:\s*(?P<message>.*)$")
+
+
+def parse_doctor_input(raw: str) -> tuple[str | None, str]:
+    """Parse the dev console's `file (path): message` input format.
+
+    Returns (file_path, message) — file_path is None for ordinary input.
+    """
+    match = FILE_INPUT_PATTERN.match(raw)
+    if not match:
+        return None, raw
+
+    path = match.group("path").strip()
+    if len(path) >= 2 and path[0] == path[-1] and path[0] in "\"'":
+        path = path[1:-1]
+
+    return path, match.group("message").strip()
 
 # Sample doctor context for console testing — stands in for whatever will
 # eventually populate `configurable` from the real request/session.
 DOCTOR_CONFIG = {
     "configurable": {
-        "id": "doc-1",
-        "name": "Dr. Saran",
-        "age": 23,
+        "id": "doc-2",
+        "name": "Dr. Purushothaman",
+        "age": 49,
         "sex": "male",
         "tone": "warm",
         "rush": False,
@@ -106,7 +127,11 @@ def main():
             if user_input.lower() in {"exit", "quit"}:
                 break
 
-            messages.append(HumanMessage(content=user_input))
+            file_path, doctor_message = parse_doctor_input(user_input)
+            additional_kwargs = {FILE_PATH_KEY: file_path} if file_path else {}
+            messages.append(
+                HumanMessage(content=doctor_message, additional_kwargs=additional_kwargs)
+            )
             result = graph.invoke({"messages": messages}, config=DOCTOR_CONFIG)
 
             while "__interrupt__" in result:
@@ -120,7 +145,10 @@ def main():
             messages = result["messages"]
 
             is_followup = messages[-1].additional_kwargs.get(IS_FOLLOWUP_MESSAGE, False)
+
+            print("=====================================")
             print(f"[is_followup_message: {is_followup}]")
+            print("=====================================")
 
             print(f"Assistant: {messages[-1].content}")
             print(end = "\n")

@@ -8,11 +8,14 @@ from .constants import (
     ROUTE_CHAT,
     ROUTE_CONFIRMATION,
     ROUTE_CONSULTATION_SAVER,
+    ROUTE_DETECTOR,
     ROUTE_EXTRACT,
     ROUTE_GENERATOR,
     ROUTE_PATIENT,
     ROUTE_PATIENT_EXTRACTOR,
     ROUTE_PATIENT_ORCHESTRATOR,
+    ROUTE_REPORT_EXTRACTOR,
+    ROUTE_REPORT_SAVER,
 )
 from .nodes.confirmation import NODE_NAME as CONFIRMATION_NODE
 from .nodes.confirmation import confirmation_node
@@ -36,12 +39,24 @@ from .nodes.patient_orchestrator import (
 )
 from .nodes.consultation_saver import NODE_NAME as CONSULTATION_SAVER_NODE
 from .nodes.consultation_saver import consultation_saver_node
+from .nodes.report_extractor import NODE_NAME as REPORT_EXTRACTOR_NODE
+from .nodes.report_extractor import (
+    report_extractor_node,
+    route_after_report_extractor,
+    route_entry,
+)
+from .nodes.report_saver import NODE_NAME as REPORT_SAVER_NODE
+from .nodes.report_saver import report_saver_node
 from .state import AssistantState
 
 # Explicitly allowlisted so checkpoint (de)serialization doesn't warn/block on
 # our custom Activity model — see langgraph's LANGGRAPH_STRICT_MSGPACK gate.
 CHECKPOINT_SERDE = JsonPlusSerializer(
-    allowed_msgpack_modules=[("graph.models.activity", "Activity")]
+    allowed_msgpack_modules=[
+        ("graph.models.activity", "Activity"),
+        ("graph.models.consultation", "Consultation"),
+        ("graph.models.report_extraction", "ReportExtraction"),
+    ]
 )
 
 
@@ -55,8 +70,26 @@ def build_graph():
     builder.add_node(ACTIVITY_RESOLVER_NODE, activity_resolver_node)
     builder.add_node(ORCHESTRATOR_NODE, patient_orchestrator_node)
     builder.add_node(CONSULTATION_SAVER_NODE, consultation_saver_node)
+    builder.add_node(REPORT_EXTRACTOR_NODE, report_extractor_node)
+    builder.add_node(REPORT_SAVER_NODE, report_saver_node)
 
-    builder.add_edge(START, DETECTOR_NODE)
+    builder.add_conditional_edges(
+        START,
+        route_entry,
+        {
+            ROUTE_REPORT_EXTRACTOR: REPORT_EXTRACTOR_NODE,
+            ROUTE_DETECTOR: DETECTOR_NODE,
+        },
+    )
+    builder.add_conditional_edges(
+        REPORT_EXTRACTOR_NODE,
+        route_after_report_extractor,
+        {
+            ROUTE_REPORT_SAVER: REPORT_SAVER_NODE,
+            ROUTE_GENERATOR: GENERATOR_NODE,
+        },
+    )
+    builder.add_edge(REPORT_SAVER_NODE, GENERATOR_NODE)
     builder.add_conditional_edges(
         DETECTOR_NODE,
         route_after_detector,

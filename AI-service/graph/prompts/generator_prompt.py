@@ -3,6 +3,7 @@ from datetime import datetime
 from ..config import DoctorContext
 from ..models.activity import Activity
 from ..models.consultation import Consultation
+from ..models.report_extraction import ReportExtraction
 from ..state import AssistantState
 from .base_prompt import BasePrompt
 
@@ -51,6 +52,22 @@ def describe_activity(activity: Activity) -> str:
 
 def _activity_lines(activities: list[Activity]) -> str:
     return "\n".join(f"- {describe_activity(activity)}" for activity in activities)
+
+
+def describe_report(report: ReportExtraction) -> str:
+    """Render a saved report factually, so the reply names what was written."""
+    lines = []
+
+    if report.patient_name:
+        lines.append(f"Patient: {report.patient_name}")
+    if report.report_type:
+        lines.append(f"Report type: {report.report_type}")
+    if report.report_date:
+        lines.append(f"Date: {report.report_date.isoformat()}")
+    if report.findings:
+        lines.append(f"Findings: {report.findings}")
+
+    return "\n".join(f"- {line}" for line in lines)
 
 
 def describe_consultation(consultation: Consultation) -> str:
@@ -178,6 +195,33 @@ class GeneratorPrompt(BasePrompt):
         "about what was recorded."
     )
 
+    DOCUMENT_REJECTED_FRAGMENT_TEMPLATE = (
+        "Document could not be processed:\n"
+        "The doctor just supplied a document, but it could not be read: {reason}\n\n"
+        "Tell the doctor plainly that you couldn't process it and why, in your own "
+        "words. Do not sound like an error message and do not apologise at length. "
+        "It's fine to suggest they try a clearer photo or a different file."
+    )
+
+    REPORT_SAVED_FRAGMENT_TEMPLATE = (
+        "Confirmed system action — report just written:\n"
+        "The details below were just written to the doctor's record by this system, "
+        "during this exchange. This is not external data you are guessing at; it is "
+        "an action that genuinely completed.\n"
+        "{items}\n\n"
+        "- Do NOT deny that this was recorded, and do NOT say you have no access to "
+        "reports or cannot save documents. You just did.\n"
+        "- Speak about it in the past tense, as something that is done.\n"
+        "- Confirm it to the doctor by naming what was captured specifically — the "
+        "patient, report type, date, and key findings listed above — rather than "
+        'saying something vague like "that\'s been saved."\n'
+        "- This exception covers ONLY what is listed above. For anything else — the "
+        "patient's wider history, other reports, past entries you were not just "
+        "given — the grounding rules still apply in full.\n"
+        "- You are not a medical advisor; do not give clinical or treatment advice "
+        "about what was found."
+    )
+
     REJECTED_FRAGMENT_TEMPLATE = (
         "Rejected by the doctor:\n"
         "{items}\n\n"
@@ -204,6 +248,22 @@ class GeneratorPrompt(BasePrompt):
         ]
         if doctor.rush:
             parts.append(self.RUSH_FRAGMENT)
+
+        document_rejection_reason = state.get("document_rejection_reason")
+        if document_rejection_reason:
+            parts.append(
+                self.DOCUMENT_REJECTED_FRAGMENT_TEMPLATE.format(
+                    reason=document_rejection_reason
+                )
+            )
+
+        report_saved = state.get("report_saved")
+        if report_saved:
+            parts.append(
+                self.REPORT_SAVED_FRAGMENT_TEMPLATE.format(
+                    items=describe_report(report_saved)
+                )
+            )
 
         consultation_saved = state.get("consultation_saved")
         if consultation_saved:

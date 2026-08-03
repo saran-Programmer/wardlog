@@ -11,6 +11,13 @@ ROUTE_PATIENT_ORCHESTRATOR = "patient_orchestrator"
 ROUTE_CONSULTATION_SAVER = "consultation_saver"
 ROUTE_GENERATOR = "generator"
 ROUTE_CONFIRMATION = "confirmation"
+ROUTE_DETECTOR = "detector"
+ROUTE_REPORT_EXTRACTOR = "report_extractor"
+ROUTE_REPORT_SAVER = "report_saver"
+
+# additional_kwargs key on a HumanMessage carrying a supplied document's path
+# (dev CLI only — parsed from the `file (path): message` input format).
+FILE_PATH_KEY = "file_path"
 
 # Patient orchestrator: max number of activity candidates to present to the
 # doctor for disambiguation before asking them to narrow the search instead.
