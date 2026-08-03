@@ -1,6 +1,8 @@
 from langchain_core.messages import SystemMessage
 from langchain_core.runnables import RunnableConfig
 
+from db.normalize import strip_honorifics
+
 from ..config import DoctorContext
 from ..models.consultation import Consultation
 from ..prompts.consultation_extractor_prompt import ConsultationExtractorPrompt
@@ -25,5 +27,11 @@ def consultation_extractor_node(state: AssistantState, config: RunnableConfig):
         .with_structured_output(Consultation)
         .invoke([SystemMessage(content=system_prompt), *state["messages"]])
     )
+
+    if result.patient.name:
+        cleaned_patient = result.patient.model_copy(
+            update={"name": strip_honorifics(result.patient.name)}
+        )
+        result = result.model_copy(update={"patient": cleaned_patient})
 
     return {"consultation": result}

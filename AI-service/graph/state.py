@@ -4,6 +4,7 @@ from langgraph.graph.message import add_messages
 
 from .models.activity import Activity
 from .models.consultation import Consultation
+from .models.report_extraction import ReportExtraction
 
 
 class AssistantState(TypedDict):
@@ -18,3 +19,6 @@ class AssistantState(TypedDict):
     return_to: Optional[str]
     resolved_activity_id: Optional[str]
     consultation_saved: NotRequired[Optional[Consultation]]
+    document_rejection_reason: NotRequired[Optional[str]]
+    pending_report: NotRequired[Optional[ReportExtraction]]
+    report_saved: NotRequired[Optional[ReportExtraction]]
