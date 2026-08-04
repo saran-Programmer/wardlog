@@ -1,6 +1,8 @@
 package com.wardlog.timesheetservice.controller;
 
 import com.wardlog.timesheetservice.dto.ActivityComparisonResponse;
+import com.wardlog.timesheetservice.dto.BreakdownTrendResponse;
+import com.wardlog.timesheetservice.dto.GapsReportResponse;
 import com.wardlog.timesheetservice.exception.InvalidActivityPayloadException;
 import com.wardlog.timesheetservice.service.ReportService;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +38,34 @@ public class ReportController {
         }
 
         ActivityComparisonResponse response = reportService.activityComparison(from, to);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/gaps")
+    public ResponseEntity<GapsReportResponse> getGaps(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+
+        if (from.isAfter(to)) {
+            throw new InvalidActivityPayloadException(
+                    "'from' (" + from + ") must not be after 'to' (" + to + ")");
+        }
+
+        GapsReportResponse response = reportService.gapsReport(from, to);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/breakdown-trend")
+    public ResponseEntity<BreakdownTrendResponse> getBreakdownTrend(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+
+        if (from.isAfter(to)) {
+            throw new InvalidActivityPayloadException(
+                    "'from' (" + from + ") must not be after 'to' (" + to + ")");
+        }
+
+        BreakdownTrendResponse response = reportService.breakdownTrend(from, to);
         return ResponseEntity.ok(response);
     }
 }

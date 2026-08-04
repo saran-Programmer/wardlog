@@ -54,4 +54,14 @@ public interface ActivityRepository extends JpaRepository<Activity, UUID>, JpaSp
         """)
     List<ActivityTypeAggregate> aggregateByActivityType(@Param("lower") LocalDateTime lower,
                                                           @Param("upper") LocalDateTime upper);
+
+    /**
+     * Full activity rows within [lower, upper), filtered on startDateTime only. Used by
+     * report queries that need the actual activity details rather than aggregates, and
+     * that cover their whole window (including any lookback period) in one round trip.
+     */
+    @Query("SELECT a FROM Activity a WHERE a.startDateTime >= :lower AND a.startDateTime < :upper " +
+            "ORDER BY a.startDateTime")
+    List<Activity> findByStartDateTimeRange(@Param("lower") LocalDateTime lower,
+                                             @Param("upper") LocalDateTime upper);
 }
