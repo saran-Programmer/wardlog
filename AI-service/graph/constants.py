@@ -1,19 +1,32 @@
+from typing import Final
+
 # Metadata key marking an AI message as a follow-up (asking for more info).
 IS_FOLLOWUP_MESSAGE = "is_followup_message"
 
 # Detector routes.
-ROUTE_EXTRACT = "extract"
-ROUTE_CHAT = "chat"
-ROUTE_PATIENT = "patient"
-ROUTE_ACTIVITY_RESOLVER = "activity_resolver"
-ROUTE_PATIENT_EXTRACTOR = "patient_extractor"
-ROUTE_PATIENT_ORCHESTRATOR = "patient_orchestrator"
-ROUTE_CONSULTATION_SAVER = "consultation_saver"
-ROUTE_GENERATOR = "generator"
-ROUTE_CONFIRMATION = "confirmation"
-ROUTE_DETECTOR = "detector"
-ROUTE_REPORT_EXTRACTOR = "report_extractor"
-ROUTE_REPORT_SAVER = "report_saver"
+# Annotated Final (not just `= "..."`) so type checkers infer each constant's
+# literal type, letting them be used inside Literal[...] type args elsewhere
+# (e.g. RouteDecision.route in nodes/detector.py) instead of duplicating the
+# raw string there.
+ROUTE_EXTRACT: Final = "extract"
+ROUTE_CHAT: Final = "chat"
+ROUTE_PATIENT: Final = "patient"
+ROUTE_ACTIVITY_RESOLVER: Final = "activity_resolver"
+ROUTE_PATIENT_EXTRACTOR: Final = "patient_extractor"
+ROUTE_PATIENT_ORCHESTRATOR: Final = "patient_orchestrator"
+ROUTE_CONSULTATION_SAVER: Final = "consultation_saver"
+ROUTE_GENERATOR: Final = "generator"
+ROUTE_CONFIRMATION: Final = "confirmation"
+ROUTE_DETECTOR: Final = "detector"
+ROUTE_REPORT_EXTRACTOR: Final = "report_extractor"
+ROUTE_REPORT_SAVER: Final = "report_saver"
+ROUTE_PATIENT_DETAILS: Final = "patient_details"
+ROUTE_PATIENT_DETAILS_GENERATOR: Final = "patient_details_generator"
+ROUTE_ACTIVITY_DETAILS: Final = "activity_details"
+ROUTE_ACTIVITY_LOOKUP: Final = "activity_lookup"
+ROUTE_ACTIVITY_DETAILS_GENERATOR: Final = "activity_details_generator"
+ROUTE_VOICE_OUTPUT: Final = "voice_output"
+ROUTE_END: Final = "end"
 
 # additional_kwargs key on a HumanMessage carrying a supplied document's path
 # (dev CLI only — parsed from the `file (path): message` input format).

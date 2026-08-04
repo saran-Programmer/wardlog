@@ -3,19 +3,25 @@ from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.graph import END, START, StateGraph
 
 from .constants import (
-    IS_FOLLOWUP_MESSAGE,
+    ROUTE_ACTIVITY_DETAILS,
+    ROUTE_ACTIVITY_DETAILS_GENERATOR,
+    ROUTE_ACTIVITY_LOOKUP,
     ROUTE_ACTIVITY_RESOLVER,
     ROUTE_CHAT,
     ROUTE_CONFIRMATION,
     ROUTE_CONSULTATION_SAVER,
     ROUTE_DETECTOR,
+    ROUTE_END,
     ROUTE_EXTRACT,
     ROUTE_GENERATOR,
     ROUTE_PATIENT,
+    ROUTE_PATIENT_DETAILS,
+    ROUTE_PATIENT_DETAILS_GENERATOR,
     ROUTE_PATIENT_EXTRACTOR,
     ROUTE_PATIENT_ORCHESTRATOR,
     ROUTE_REPORT_EXTRACTOR,
     ROUTE_REPORT_SAVER,
+    ROUTE_VOICE_OUTPUT,
 )
 from .nodes.confirmation import NODE_NAME as CONFIRMATION_NODE
 from .nodes.confirmation import confirmation_node
@@ -27,7 +33,7 @@ from .nodes.activity_extractor import (
     route_after_activity_extractor,
 )
 from .nodes.generator import NODE_NAME as GENERATOR_NODE
-from .nodes.generator import generator_node
+from .nodes.generator import generator_node, route_after_generator
 from .nodes.consultation_extractor import NODE_NAME as CONSULTATION_EXTRACTOR_NODE
 from .nodes.consultation_extractor import consultation_extractor_node
 from .nodes.activity_resolver import NODE_NAME as ACTIVITY_RESOLVER_NODE
@@ -47,6 +53,23 @@ from .nodes.report_extractor import (
 )
 from .nodes.report_saver import NODE_NAME as REPORT_SAVER_NODE
 from .nodes.report_saver import report_saver_node
+from .nodes.patient_details_fetcher import NODE_NAME as PATIENT_DETAILS_FETCHER_NODE
+from .nodes.patient_details_fetcher import (
+    patient_details_fetcher_node,
+    route_after_patient_details_fetcher,
+)
+from .nodes.patient_details_generator import (
+    NODE_NAME as PATIENT_DETAILS_GENERATOR_NODE,
+)
+from .nodes.patient_details_generator import patient_details_generator_node
+from .nodes.activity_lookup import NODE_NAME as ACTIVITY_LOOKUP_NODE
+from .nodes.activity_lookup import activity_lookup_node, route_after_activity_lookup
+from .nodes.activity_details_generator import (
+    NODE_NAME as ACTIVITY_DETAILS_GENERATOR_NODE,
+)
+from .nodes.activity_details_generator import activity_details_generator_node
+from .nodes.voice_output import NODE_NAME as VOICE_OUTPUT_NODE
+from .nodes.voice_output import voice_output_node
 from .state import AssistantState
 
 # Explicitly allowlisted so checkpoint (de)serialization doesn't warn/block on
@@ -56,6 +79,8 @@ CHECKPOINT_SERDE = JsonPlusSerializer(
         ("graph.models.activity", "Activity"),
         ("graph.models.consultation", "Consultation"),
         ("graph.models.report_extraction", "ReportExtraction"),
+        ("graph.models.patient_details", "PatientDetails"),
+        ("graph.models.activity_details", "ActivityDetails"),
     ]
 )
 
@@ -72,6 +97,11 @@ def build_graph():
     builder.add_node(CONSULTATION_SAVER_NODE, consultation_saver_node)
     builder.add_node(REPORT_EXTRACTOR_NODE, report_extractor_node)
     builder.add_node(REPORT_SAVER_NODE, report_saver_node)
+    builder.add_node(PATIENT_DETAILS_FETCHER_NODE, patient_details_fetcher_node)
+    builder.add_node(PATIENT_DETAILS_GENERATOR_NODE, patient_details_generator_node)
+    builder.add_node(ACTIVITY_LOOKUP_NODE, activity_lookup_node)
+    builder.add_node(ACTIVITY_DETAILS_GENERATOR_NODE, activity_details_generator_node)
+    builder.add_node(VOICE_OUTPUT_NODE, voice_output_node)
 
     builder.add_conditional_edges(
         START,
@@ -97,8 +127,30 @@ def build_graph():
             ROUTE_EXTRACT: EXTRACTOR_NODE,
             ROUTE_CHAT: GENERATOR_NODE,
             ROUTE_PATIENT: ORCHESTRATOR_NODE,
+            ROUTE_PATIENT_DETAILS: PATIENT_DETAILS_FETCHER_NODE,
+            ROUTE_ACTIVITY_DETAILS: ACTIVITY_LOOKUP_NODE,
         },
     )
+    builder.add_conditional_edges(
+        PATIENT_DETAILS_FETCHER_NODE,
+        route_after_patient_details_fetcher,
+        {
+            ROUTE_GENERATOR: GENERATOR_NODE,
+            ROUTE_PATIENT_DETAILS_GENERATOR: PATIENT_DETAILS_GENERATOR_NODE,
+        },
+    )
+    builder.add_edge(PATIENT_DETAILS_GENERATOR_NODE, GENERATOR_NODE)
+    builder.add_conditional_edges(
+        ACTIVITY_LOOKUP_NODE,
+        route_after_activity_lookup,
+        {
+            ROUTE_ACTIVITY_RESOLVER: ACTIVITY_RESOLVER_NODE,
+            ROUTE_ACTIVITY_LOOKUP: ACTIVITY_LOOKUP_NODE,
+            ROUTE_ACTIVITY_DETAILS_GENERATOR: ACTIVITY_DETAILS_GENERATOR_NODE,
+            ROUTE_GENERATOR: GENERATOR_NODE,
+        },
+    )
+    builder.add_edge(ACTIVITY_DETAILS_GENERATOR_NODE, GENERATOR_NODE)
     builder.add_conditional_edges(
         EXTRACTOR_NODE,
         route_after_activity_extractor,
@@ -118,6 +170,16 @@ def build_graph():
     builder.add_edge(CONSULTATION_EXTRACTOR_NODE, ORCHESTRATOR_NODE)
     builder.add_edge(CONSULTATION_SAVER_NODE, GENERATOR_NODE)
     builder.add_edge(CONFIRMATION_NODE, GENERATOR_NODE)
-    builder.add_edge(GENERATOR_NODE, END)
+    builder.add_conditional_edges(
+        GENERATOR_NODE,
+        route_after_generator,
+        {ROUTE_VOICE_OUTPUT: VOICE_OUTPUT_NODE, ROUTE_END: END},
+    )
+    builder.add_edge(VOICE_OUTPUT_NODE, END)
 
     return builder.compile(checkpointer=InMemorySaver(serde=CHECKPOINT_SERDE))
+
+
+# Compiled once at import time — the service layer invokes this shared instance
+# rather than rebuilding the graph per request.
+graph = build_graph()

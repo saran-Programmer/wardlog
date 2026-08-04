@@ -44,6 +44,33 @@ PATIENT_EXTRACTOR_ROUTE = (
     'I log a diagnosis", "remind me about ACL protocols".'
 )
 
+PATIENT_DETAILS_ROUTE = (
+    'Route "patient_details" — the patient details lookup.\n'
+    "Choose this when the doctor is ASKING ABOUT an existing patient rather "
+    "than recording new information — e.g. wanting to know a patient's "
+    "history, past visits, diagnoses, medications, surgeries, or reports.\n"
+    'Examples: "tell me about Uma", "what did I prescribe Uma last time", '
+    '"what is Marcus\'s history", "when did I last see Uma", "what were '
+    'Uma\'s reports".\n'
+    "Do NOT choose this when the doctor is RECORDING new patient "
+    'information (that is the "patient" route) — this route is for '
+    "questions/lookups only."
+)
+
+ACTIVITY_DETAILS_ROUTE = (
+    'Route "activity_details" — the activity details lookup.\n'
+    "Choose this when the doctor is ASKING ABOUT an activity they already "
+    "logged — what happened during it, which patients they saw, what was "
+    "diagnosed or prescribed in it.\n"
+    'Examples: "what did I do in my clinic block yesterday", "which patients '
+    'did I see last Tuesday", "what happened in that surgery block", "who '
+    'did I see this morning".\n'
+    "Do NOT choose this when the doctor is RECORDING a new activity (that is "
+    '"extract"), or asking about a specific PATIENT\'s history (that is '
+    '"patient_details"). This route is for questions about a particular '
+    "activity/session."
+)
+
 CHAT_ROUTE = (
     'Route "chat" — the conversational generator.\n'
     "Choose this when the latest message is ordinary conversation "
@@ -67,9 +94,10 @@ LATEST_MESSAGE_FOCUS = (
 
 CLOSING = (
     "Pick exactly one route based on what the latest message is primarily "
-    "about. If the message clearly fits 'extract' (the doctor's own activity) "
-    "or 'patient' (a specific patient they saw), prefer that over 'chat'. "
-    "Otherwise choose 'chat'.\n"
+    "about. If the message clearly fits 'extract' (the doctor's own activity), "
+    "'patient' (a specific patient they saw), 'patient_details' (asking "
+    "about an existing patient), or 'activity_details' (asking about a "
+    "logged activity), prefer that over 'chat'. Otherwise choose 'chat'.\n"
     "Do not explain your reasoning. Return only the route."
 )
 
@@ -79,6 +107,10 @@ DETECTOR_SYSTEM_PROMPT = (
     + ACTIVITY_EXTRACTOR_ROUTE
     + "\n\n"
     + PATIENT_EXTRACTOR_ROUTE
+    + "\n\n"
+    + PATIENT_DETAILS_ROUTE
+    + "\n\n"
+    + ACTIVITY_DETAILS_ROUTE
     + "\n\n"
     + CHAT_ROUTE
     + "\n\n"

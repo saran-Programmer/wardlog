@@ -1,15 +1,15 @@
 import re
+from uuid import uuid4
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from langchain_core.messages import HumanMessage
-from langgraph.types import Command
-
 from db.connection import close_driver, verify_connection
-from graph.build_graph import build_graph
-from graph.constants import CHOICE_QUERY, FILE_PATH_KEY, IS_FOLLOWUP_MESSAGE
+from db.postgres import create_tables
+from graph.config import DoctorContext
+from graph.constants import CHOICE_QUERY
+from service.conversation_service import resume, send_message, start_conversation
 
 # Dev-only CLI input format: `file (path/to/report.pdf): message text`.
 FILE_INPUT_PATTERN = re.compile(r"^file\s*\((?P<path>[^)]+)\)\s*:\s*(?P<message>.*)$")
@@ -30,20 +30,20 @@ def parse_doctor_input(raw: str) -> tuple[str | None, str]:
 
     return path, match.group("message").strip()
 
+
 # Sample doctor context for console testing — stands in for whatever will
-# eventually populate `configurable` from the real request/session.
-DOCTOR_CONFIG = {
-    "configurable": {
-        "id": "doc-2",
-        "name": "Dr. Purushothaman",
-        "age": 49,
-        "sex": "male",
-        "tone": "warm",
-        "rush": False,
-        "assistant_name": "grok",
-        "thread_id": "console-session",
-    }
-}
+# eventually populate the request/session in the FastAPI layer.
+DOCTOR = DoctorContext(
+    id="doc-2",
+    name="Dr. Purushothaman",
+    age=49,
+    sex="male",
+    tone="warm",
+    rush=False,
+    assistant_name="grok",
+    voice_output=True,
+)
+
 
 def prompt_for_decisions(payload):
     print("\nThe following activities need your confirmation:")
@@ -114,13 +114,19 @@ def prompt_for_activity_choice(payload):
     return {"choice": selected["id"]}
 
 
+def render_interrupt(payload):
+    if isinstance(payload, dict) and "options" in payload:
+        return prompt_for_activity_choice(payload)
+    return prompt_for_decisions(payload)
+
+
 def main():
     print("WardLog console — type 'exit' to quit.")
-    messages = []
 
+    create_tables()
     verify_connection()
     try:
-        graph = build_graph()
+        conversation_id = start_conversation(DOCTOR.id)
 
         while True:
             user_input = input("You: ").strip()
@@ -128,30 +134,17 @@ def main():
                 break
 
             file_path, doctor_message = parse_doctor_input(user_input)
-            additional_kwargs = {FILE_PATH_KEY: file_path} if file_path else {}
-            messages.append(
-                HumanMessage(content=doctor_message, additional_kwargs=additional_kwargs)
-            )
-            result = graph.invoke({"messages": messages}, config=DOCTOR_CONFIG)
+            result = send_message(conversation_id, DOCTOR, doctor_message, file_path)
 
-            while "__interrupt__" in result:
-                payload = result["__interrupt__"][0].value
-                if isinstance(payload, dict) and "options" in payload:
-                    resume_value = prompt_for_activity_choice(payload)
-                else:
-                    resume_value = prompt_for_decisions(payload)
-                result = graph.invoke(Command(resume=resume_value), config=DOCTOR_CONFIG)
-
-            messages = result["messages"]
-
-            is_followup = messages[-1].additional_kwargs.get(IS_FOLLOWUP_MESSAGE, False)
+            while result["status"] == "interrupt":
+                resume_value = render_interrupt(result["payload"])
+                result = resume(conversation_id, DOCTOR, resume_value)
 
             print("=====================================")
-            print(f"[is_followup_message: {is_followup}]")
-            print("=====================================")
-
-            print(f"Assistant: {messages[-1].content}")
-            print(end = "\n")
+            print(f"Assistant: {result['reply']}")
+            if result.get("audio_path"):
+                print(f"[audio: {result['audio_path']}]")
+            print(end="\n")
     finally:
         close_driver()
 

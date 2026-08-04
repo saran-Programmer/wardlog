@@ -1,7 +1,13 @@
+from groq import Groq
 from langchain_groq import ChatGroq
 
 TEXT_MODEL = "llama-3.3-70b-versatile"
 VISION_MODEL = "qwen/qwen3.6-27b"
+TTS_MODEL = "canopylabs/orpheus-v1-english"
+TTS_VOICE = "diana"
+
+# Reused across calls — reads GROQ_API_KEY from env once at import time.
+groq_client = Groq()
 
 def get_llm(temperature: float = 0) -> ChatGroq:
     """Return a ChatGroq instance for the given temperature.
@@ -26,3 +32,14 @@ def get_vision_llm(temperature: float = 0) -> ChatGroq:
         reasoning_effort="none",
         max_tokens=4096,
     )
+
+
+def synthesize_speech(text: str, output_path: str) -> str:
+    response = groq_client.audio.speech.create(
+        model=TTS_MODEL,
+        voice=TTS_VOICE,
+        input=text,
+        response_format="wav",
+    )
+    response.write_to_file(output_path)
+    return output_path

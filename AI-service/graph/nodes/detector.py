@@ -3,7 +3,14 @@ from typing import Literal
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage
 from pydantic import BaseModel
 
-from ..constants import IS_FOLLOWUP_MESSAGE, ROUTE_CHAT, ROUTE_EXTRACT
+from ..constants import (
+    IS_FOLLOWUP_MESSAGE,
+    ROUTE_ACTIVITY_DETAILS,
+    ROUTE_CHAT,
+    ROUTE_EXTRACT,
+    ROUTE_PATIENT,
+    ROUTE_PATIENT_DETAILS,
+)
 from ..prompts.detector_prompt import DETECTOR_SYSTEM_PROMPT
 from ..state import AssistantState
 from .llm import get_llm
@@ -11,21 +18,10 @@ from .llm import get_llm
 NODE_NAME = "detector"
 
 class RouteDecision(BaseModel):
-    route: Literal["extract", "patient", "chat"]
+    route: Literal["extract", "patient", "patient_details", "activity_details", "chat"]
 
 
 def get_current_exchange(messages: list[BaseMessage]) -> list[BaseMessage]:
-    """Return only the messages belonging to the current exchange.
-
-    Walk backwards from the latest message. An AI message flagged as a
-    follow-up means the request before it is still in progress, so the walk
-    continues through it. The walk STOPS at the first AI message that is NOT a
-    follow-up — that reply closed an earlier request, and everything before it
-    is unrelated history.
-
-    This keeps the detector from re-routing on activities/topics mentioned in
-    earlier, already-closed exchanges.
-    """
     collected: list[BaseMessage] = []
 
     for message in reversed(messages):
@@ -57,6 +53,13 @@ def detector_node(state: AssistantState):
         "consultation_saved": None,
         "document_rejection_reason": None,
         "report_saved": None,
+        "patient_not_found": None,
+        "patient_generated_content": None,
+        "patient_details_data": None,
+        "activity_not_found": None,
+        "activity_generated_content": None,
+        "activity_details_data": None,
+        "audio_path": None,
     }
 
 
@@ -64,6 +67,10 @@ def route_after_detector(state: AssistantState) -> str:
     route = state["route"]
     if route == ROUTE_EXTRACT:
         return ROUTE_EXTRACT
-    if route == "patient":
-        return "patient"
+    if route == ROUTE_PATIENT:
+        return ROUTE_PATIENT
+    if route == ROUTE_PATIENT_DETAILS:
+        return ROUTE_PATIENT_DETAILS
+    if route == ROUTE_ACTIVITY_DETAILS:
+        return ROUTE_ACTIVITY_DETAILS
     return ROUTE_CHAT
