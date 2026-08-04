@@ -1,12 +1,14 @@
 package com.wardlog.timesheetservice.repository;
 
 import com.wardlog.timesheetservice.entity.Activity;
+import com.wardlog.timesheetservice.repository.projection.ActivityTypeAggregate;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -36,4 +38,20 @@ public interface ActivityRepository extends JpaRepository<Activity, UUID>, JpaSp
                                        @Param("startDateTime") LocalDateTime startDateTime,
                                        @Param("endDateTime") LocalDateTime endDateTime,
                                        @Param("excludingId") UUID excludingId);
+
+    /**
+     * Per-activity-type counts and minute totals within [lower, upper), filtered on
+     * startDateTime only — an activity belongs to the day it starts on. Returns rows
+     * only for types with at least one activity in range; callers fill in the rest.
+     */
+    @Query("""
+        SELECT a.activityType AS activityType,
+               COUNT(a) AS activityCount,
+               COALESCE(SUM(a.durationMinutes), 0) AS totalMinutes
+        FROM Activity a
+        WHERE a.startDateTime >= :lower AND a.startDateTime < :upper
+        GROUP BY a.activityType
+        """)
+    List<ActivityTypeAggregate> aggregateByActivityType(@Param("lower") LocalDateTime lower,
+                                                          @Param("upper") LocalDateTime upper);
 }
