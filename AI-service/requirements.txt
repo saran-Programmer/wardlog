@@ -8,3 +8,5 @@ pydantic-settings
 python-dotenv
 neo4j
 pymupdf
+sqlalchemy
+psycopg[binary]

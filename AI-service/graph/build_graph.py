@@ -168,3 +168,8 @@ def build_graph():
     builder.add_edge(GENERATOR_NODE, END)
 
     return builder.compile(checkpointer=InMemorySaver(serde=CHECKPOINT_SERDE))
+
+
+# Compiled once at import time — the service layer invokes this shared instance
+# rather than rebuilding the graph per request.
+graph = build_graph()
