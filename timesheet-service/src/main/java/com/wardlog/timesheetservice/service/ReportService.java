@@ -2,17 +2,20 @@ package com.wardlog.timesheetservice.service;
 
 import com.wardlog.timesheetservice.dto.ActivityComparisonResponse;
 import com.wardlog.timesheetservice.dto.ActivityResponse;
+import com.wardlog.timesheetservice.dto.ActivityTrendsResponse;
 import com.wardlog.timesheetservice.dto.ActivityTypeBreakdown;
 import com.wardlog.timesheetservice.dto.BreakdownTrendResponse;
 import com.wardlog.timesheetservice.dto.GapEntry;
 import com.wardlog.timesheetservice.dto.GapHistoryEntry;
 import com.wardlog.timesheetservice.dto.GapsReportResponse;
+import com.wardlog.timesheetservice.dto.MonthlyTrend;
 import com.wardlog.timesheetservice.dto.TrendBucket;
 import com.wardlog.timesheetservice.dto.TrendTypeBreakdown;
 import com.wardlog.timesheetservice.entity.Activity;
 import com.wardlog.timesheetservice.enums.ActivityType;
 import com.wardlog.timesheetservice.repository.ActivityRepository;
 import com.wardlog.timesheetservice.repository.projection.ActivityTypeAggregate;
+import com.wardlog.timesheetservice.repository.projection.MonthlyActivityTypeAggregate;
 import com.wardlog.timesheetservice.util.PeriodResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -185,6 +188,49 @@ public class ReportService {
                 .to(to)
                 .bucketed(!singleBucket)
                 .buckets(buckets)
+                .build();
+    }
+
+    // WORKAROUND: no doctorId parameter for now. Once auth is wired up, this report
+    // must be scoped to the doctor derived from the token.
+    public ActivityTrendsResponse activityTrends(LocalDate from, LocalDate to) {
+        LocalDateTime lower = from.atStartOfDay();
+        LocalDateTime upper = to.plusDays(1).atStartOfDay();
+
+        List<MonthlyActivityTypeAggregate> aggregates = activityRepository.aggregateByMonthAndType(lower, upper);
+
+        Map<String, Map<ActivityType, MonthlyActivityTypeAggregate>> byMonthAndType = new HashMap<>();
+        for (MonthlyActivityTypeAggregate aggregate : aggregates) {
+            byMonthAndType.computeIfAbsent(aggregate.getMonth(), m -> new EnumMap<>(ActivityType.class))
+                    .put(aggregate.getActivityType(), aggregate);
+        }
+
+        List<MonthlyTrend> months = new ArrayList<>();
+        for (YearMonth yearMonth = YearMonth.from(from); !yearMonth.isAfter(YearMonth.from(to));
+                yearMonth = yearMonth.plusMonths(1)) {
+            String monthKey = yearMonth.toString();
+            Map<ActivityType, MonthlyActivityTypeAggregate> byType =
+                    byMonthAndType.getOrDefault(monthKey, Collections.emptyMap());
+
+            List<ActivityTypeBreakdown> breakdown = new ArrayList<>();
+            for (ActivityType type : ActivityType.values()) {
+                MonthlyActivityTypeAggregate aggregate = byType.get(type);
+                breakdown.add(ActivityTypeBreakdown.builder()
+                        .activityType(type)
+                        .label(type.getLabel())
+                        .activityCount(aggregate == null ? 0L : aggregate.getActivityCount())
+                        .totalMinutes(aggregate == null ? 0L : aggregate.getTotalMinutes())
+                        .build());
+            }
+
+            months.add(MonthlyTrend.builder()
+                    .month(monthKey)
+                    .breakdown(breakdown)
+                    .build());
+        }
+
+        return ActivityTrendsResponse.builder()
+                .months(months)
                 .build();
     }
 

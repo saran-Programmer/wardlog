@@ -1,6 +1,7 @@
 package com.wardlog.timesheetservice.controller;
 
 import com.wardlog.timesheetservice.dto.ActivityComparisonResponse;
+import com.wardlog.timesheetservice.dto.ActivityTrendsResponse;
 import com.wardlog.timesheetservice.dto.BreakdownTrendResponse;
 import com.wardlog.timesheetservice.dto.GapsReportResponse;
 import com.wardlog.timesheetservice.exception.InvalidActivityPayloadException;
@@ -66,6 +67,20 @@ public class ReportController {
         }
 
         BreakdownTrendResponse response = reportService.breakdownTrend(from, to);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/activity-trends")
+    public ResponseEntity<ActivityTrendsResponse> getActivityTrends(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+
+        if (from.isAfter(to)) {
+            throw new InvalidActivityPayloadException(
+                    "'from' (" + from + ") must not be after 'to' (" + to + ")");
+        }
+
+        ActivityTrendsResponse response = reportService.activityTrends(from, to);
         return ResponseEntity.ok(response);
     }
 }
