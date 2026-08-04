@@ -41,6 +41,7 @@ DOCTOR = DoctorContext(
     tone="warm",
     rush=False,
     assistant_name="grok",
+    voice_output=True,
 )
 
 
@@ -141,6 +142,8 @@ def main():
 
             print("=====================================")
             print(f"Assistant: {result['reply']}")
+            if result.get("audio_path"):
+                print(f"[audio: {result['audio_path']}]")
             print(end="\n")
     finally:
         close_driver()

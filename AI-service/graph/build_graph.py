@@ -11,6 +11,7 @@ from .constants import (
     ROUTE_CONFIRMATION,
     ROUTE_CONSULTATION_SAVER,
     ROUTE_DETECTOR,
+    ROUTE_END,
     ROUTE_EXTRACT,
     ROUTE_GENERATOR,
     ROUTE_PATIENT,
@@ -20,6 +21,7 @@ from .constants import (
     ROUTE_PATIENT_ORCHESTRATOR,
     ROUTE_REPORT_EXTRACTOR,
     ROUTE_REPORT_SAVER,
+    ROUTE_VOICE_OUTPUT,
 )
 from .nodes.confirmation import NODE_NAME as CONFIRMATION_NODE
 from .nodes.confirmation import confirmation_node
@@ -31,7 +33,7 @@ from .nodes.activity_extractor import (
     route_after_activity_extractor,
 )
 from .nodes.generator import NODE_NAME as GENERATOR_NODE
-from .nodes.generator import generator_node
+from .nodes.generator import generator_node, route_after_generator
 from .nodes.consultation_extractor import NODE_NAME as CONSULTATION_EXTRACTOR_NODE
 from .nodes.consultation_extractor import consultation_extractor_node
 from .nodes.activity_resolver import NODE_NAME as ACTIVITY_RESOLVER_NODE
@@ -66,6 +68,8 @@ from .nodes.activity_details_generator import (
     NODE_NAME as ACTIVITY_DETAILS_GENERATOR_NODE,
 )
 from .nodes.activity_details_generator import activity_details_generator_node
+from .nodes.voice_output import NODE_NAME as VOICE_OUTPUT_NODE
+from .nodes.voice_output import voice_output_node
 from .state import AssistantState
 
 # Explicitly allowlisted so checkpoint (de)serialization doesn't warn/block on
@@ -97,6 +101,7 @@ def build_graph():
     builder.add_node(PATIENT_DETAILS_GENERATOR_NODE, patient_details_generator_node)
     builder.add_node(ACTIVITY_LOOKUP_NODE, activity_lookup_node)
     builder.add_node(ACTIVITY_DETAILS_GENERATOR_NODE, activity_details_generator_node)
+    builder.add_node(VOICE_OUTPUT_NODE, voice_output_node)
 
     builder.add_conditional_edges(
         START,
@@ -165,7 +170,12 @@ def build_graph():
     builder.add_edge(CONSULTATION_EXTRACTOR_NODE, ORCHESTRATOR_NODE)
     builder.add_edge(CONSULTATION_SAVER_NODE, GENERATOR_NODE)
     builder.add_edge(CONFIRMATION_NODE, GENERATOR_NODE)
-    builder.add_edge(GENERATOR_NODE, END)
+    builder.add_conditional_edges(
+        GENERATOR_NODE,
+        route_after_generator,
+        {ROUTE_VOICE_OUTPUT: VOICE_OUTPUT_NODE, ROUTE_END: END},
+    )
+    builder.add_edge(VOICE_OUTPUT_NODE, END)
 
     return builder.compile(checkpointer=InMemorySaver(serde=CHECKPOINT_SERDE))
 

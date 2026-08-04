@@ -25,6 +25,8 @@ ROUTE_PATIENT_DETAILS_GENERATOR: Final = "patient_details_generator"
 ROUTE_ACTIVITY_DETAILS: Final = "activity_details"
 ROUTE_ACTIVITY_LOOKUP: Final = "activity_lookup"
 ROUTE_ACTIVITY_DETAILS_GENERATOR: Final = "activity_details_generator"
+ROUTE_VOICE_OUTPUT: Final = "voice_output"
+ROUTE_END: Final = "end"
 
 # additional_kwargs key on a HumanMessage carrying a supplied document's path
 # (dev CLI only — parsed from the `file (path): message` input format).

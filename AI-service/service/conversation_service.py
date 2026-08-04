@@ -73,7 +73,11 @@ def _finalize(conversation_id: UUID, result: dict) -> dict:
     touch_conversation(conversation_id)
 
     last_ai_content = next((content for role, content in reversed(delta) if role == "ai"), "")
-    return {"status": "reply", "reply": last_ai_content}
+    return {
+        "status": "reply",
+        "reply": last_ai_content,
+        "audio_path": result.get("audio_path"),
+    }
 
 
 def get_messages(conversation_id: UUID) -> list[dict]:
