@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from ..constants import (
     IS_FOLLOWUP_MESSAGE,
+    ROUTE_ACTIVITY_DETAILS,
     ROUTE_CHAT,
     ROUTE_EXTRACT,
     ROUTE_PATIENT,
@@ -17,7 +18,7 @@ from .llm import get_llm
 NODE_NAME = "detector"
 
 class RouteDecision(BaseModel):
-    route: Literal["extract", "patient", "patient_details", "chat"]
+    route: Literal["extract", "patient", "patient_details", "activity_details", "chat"]
 
 
 def get_current_exchange(messages: list[BaseMessage]) -> list[BaseMessage]:
@@ -55,6 +56,9 @@ def detector_node(state: AssistantState):
         "patient_not_found": None,
         "patient_generated_content": None,
         "patient_details_data": None,
+        "activity_not_found": None,
+        "activity_generated_content": None,
+        "activity_details_data": None,
     }
 
 
@@ -66,4 +70,6 @@ def route_after_detector(state: AssistantState) -> str:
         return ROUTE_PATIENT
     if route == ROUTE_PATIENT_DETAILS:
         return ROUTE_PATIENT_DETAILS
+    if route == ROUTE_ACTIVITY_DETAILS:
+        return ROUTE_ACTIVITY_DETAILS
     return ROUTE_CHAT

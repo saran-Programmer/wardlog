@@ -251,6 +251,28 @@ class GeneratorPrompt(BasePrompt):
         "which patient they mean before you can look anything up."
     )
 
+    ACTIVITY_DETAILS_FRAGMENT_TEMPLATE = (
+        "Activity information retrieved from the doctor's records:\n"
+        "This information came from the doctor's own records via this "
+        "system, during this exchange. This is not external data you are "
+        "guessing at.\n"
+        "{content}\n\n"
+        "Deliver this content to the doctor as your reply, in your own "
+        "voice, applying your tone and rush settings above. Do NOT add "
+        "facts beyond what is stated above, and do NOT contradict it. Do "
+        "NOT deny having access to this information or say you can't look "
+        "up activity records — you just did."
+    )
+
+    ACTIVITY_NOT_FOUND_FRAGMENT_TEMPLATE = (
+        "Activity lookup — no result:\n"
+        "No matching activity was found for what the doctor asked about.\n\n"
+        "Tell the doctor this plainly, in your own words, in keeping with "
+        "your tone and rush settings above, and invite them to give a "
+        "different date or description. Do not sound like an error message "
+        "and do not apologise at length."
+    )
+
     REJECTED_FRAGMENT_TEMPLATE = (
         "Rejected by the doctor:\n"
         "{items}\n\n"
@@ -320,6 +342,18 @@ class GeneratorPrompt(BasePrompt):
             parts.append(
                 self.PATIENT_NOT_FOUND_FRAGMENT_TEMPLATE.format(detail=detail)
             )
+
+        activity_generated_content = state.get("activity_generated_content")
+        if activity_generated_content:
+            parts.append(
+                self.ACTIVITY_DETAILS_FRAGMENT_TEMPLATE.format(
+                    content=activity_generated_content
+                )
+            )
+
+        activity_not_found = state.get("activity_not_found")
+        if activity_not_found:
+            parts.append(self.ACTIVITY_NOT_FOUND_FRAGMENT_TEMPLATE)
 
         followups = state.get("followup_messages") or []
         if followups:
