@@ -1,6 +1,0 @@
-spring:
-  application:
-    name: report-service
-
-server:
-  port: 9010
