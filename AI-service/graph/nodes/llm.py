@@ -34,12 +34,15 @@ def get_vision_llm(temperature: float = 0) -> ChatGroq:
     )
 
 
-def synthesize_speech(text: str, output_path: str) -> str:
+# TODO: the audio is currently requested as uncompressed WAV, which is roughly 10x larger
+# than it needs to be — and base64 adds another ~33% on top. Before this goes anywhere near
+# real traffic, request a compressed format (e.g. mp3) from the TTS API instead of wav, and
+# enable gzip on the API responses. Leaving it uncompressed for now.
+def synthesize_speech(text: str) -> bytes:
     response = groq_client.audio.speech.create(
         model=TTS_MODEL,
         voice=TTS_VOICE,
         input=text,
         response_format="wav",
     )
-    response.write_to_file(output_path)
-    return output_path
+    return response.read()

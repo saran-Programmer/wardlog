@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid import uuid4
 
 from graph.models.report_extraction import ReportExtraction
@@ -14,13 +15,14 @@ CREATE (r:Report {
   report_date: $report_date,
   findings: $findings,
   full_text: $full_text,
-  notes: $doctor_notes
+  notes: $doctor_notes,
+  file_url: $file_url
 })
 MERGE (p)-[:HAS_REPORT]->(r)
 """
 
 
-def save_report(report: ReportExtraction) -> str:
+def save_report(report: ReportExtraction, file_url: Optional[str] = None) -> str:
     report_id = str(uuid4())
 
     def _write(tx):
@@ -34,6 +36,7 @@ def save_report(report: ReportExtraction) -> str:
             findings=report.findings,
             full_text=report.full_text,
             doctor_notes=report.doctor_notes,
+            file_url=file_url,
         )
 
     with driver.session() as session:

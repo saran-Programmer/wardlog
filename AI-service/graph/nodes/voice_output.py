@@ -1,3 +1,4 @@
+import base64
 from pathlib import Path
 from uuid import uuid4
 
@@ -28,13 +29,22 @@ def voice_output_node(state: AssistantState, config: RunnableConfig):
     if last_ai is None:
         return {}
 
-    AUDIO_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    output_path = str(AUDIO_OUTPUT_DIR / f"{uuid4()}.wav")
-
     try:
-        synthesize_speech(last_ai.content, output_path)
+        audio_bytes = synthesize_speech(last_ai.content)
     except Exception as exc:
         print(f"[voice_output] TTS failed for doctor {doctor.id}: {exc}")
         return {}
 
-    return {"audio_path": output_path}
+    # --- TEMPORARY: local audio dump, for development listening only. ---
+    # The real output path is the base64 audio returned in the API response above.
+    # DELETE this whole block (and the audio_output/ folder) when it is no longer needed.
+    try:
+        AUDIO_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        output_path = AUDIO_OUTPUT_DIR / f"{uuid4()}.wav"
+        output_path.write_bytes(audio_bytes)
+    except Exception as exc:
+        print(f"[voice_output] local audio dump failed for doctor {doctor.id}: {exc}")
+    # --- END TEMPORARY ---
+
+    encoded = base64.b64encode(audio_bytes).decode("ascii")
+    return {"audio_base64": encoded}

@@ -1,5 +1,6 @@
 fastapi
 uvicorn[standard]
+python-multipart
 langgraph
 langchain
 langchain-groq
@@ -11,3 +12,5 @@ neo4j
 pymupdf
 sqlalchemy
 psycopg[binary]
+pyjwt
+boto3

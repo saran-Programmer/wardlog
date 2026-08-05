@@ -11,8 +11,6 @@ from .models.report_extraction import ReportExtraction
 
 class AssistantState(TypedDict):
 
-    #TODO : should add a simple one line comment above each field representing why it is there.
-
     messages: Annotated[list, add_messages]
     route: str
     activities: list[Activity]
@@ -26,6 +24,7 @@ class AssistantState(TypedDict):
     consultation_saved: NotRequired[Optional[Consultation]]
     document_rejection_reason: NotRequired[Optional[str]]
     pending_report: NotRequired[Optional[ReportExtraction]]
+    pending_report_file_url: NotRequired[Optional[str]]
     report_saved: NotRequired[Optional[ReportExtraction]]
     patient_not_found: NotRequired[Optional[str]]
     patient_generated_content: NotRequired[Optional[str]]
@@ -33,4 +32,4 @@ class AssistantState(TypedDict):
     activity_not_found: NotRequired[Optional[bool]]
     activity_generated_content: NotRequired[Optional[str]]
     activity_details_data: NotRequired[Optional[ActivityDetails]]
-    audio_path: NotRequired[Optional[str]]
+    audio_base64: NotRequired[Optional[str]]

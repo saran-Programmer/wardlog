@@ -1,6 +1,7 @@
 import base64
 import os
 from typing import Optional
+from uuid import uuid4
 
 import fitz
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -8,6 +9,7 @@ from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 
 from db.normalize import strip_honorifics
+from storage.s3 import upload_document
 
 from ..config import DoctorContext
 from ..constants import (
@@ -96,6 +98,7 @@ def _image_content_blocks(images: list[tuple[bytes, str]]) -> list[dict]:
 
 
 def _extract_from_document(file_path: str, doctor_message: str, doctor: DoctorContext) -> dict:
+    resolved_path = _resolve_path(file_path)
     images = _load_document_images(file_path)
     system_prompt = ReportExtractorPrompt().build(doctor)
     human_message = HumanMessage(
@@ -115,13 +118,19 @@ def _extract_from_document(file_path: str, doctor_message: str, doctor: DoctorCo
     )
 
     if not extraction.is_processable:
+        os.remove(resolved_path)
         return {"document_rejection_reason": extraction.rejection_reason}
 
+    ext = os.path.splitext(resolved_path)[1].lower()
+    file_url = upload_document(resolved_path, f"reports/{uuid4()}{ext}")
+    os.remove(resolved_path)
+
     if extraction.patient_name:
-        return {"pending_report": extraction}
+        return {"pending_report": extraction, "pending_report_file_url": file_url}
 
     return {
         "pending_report": extraction,
+        "pending_report_file_url": file_url,
         "followup_messages": ["Which patient does this report belong to?"],
     }
 
