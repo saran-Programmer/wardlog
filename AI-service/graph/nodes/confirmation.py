@@ -4,10 +4,12 @@ from uuid import uuid4
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import interrupt
 
+from db.activity_fetcher import find_overlapping_activities
 from db.activity_saver import write_logged_activity
 
 from ..config import DoctorContext
 from ..models.activity import Activity
+from ..models.blocked_activity import BlockedActivity
 from ..state import AssistantState
 
 NODE_NAME = "confirmation"
@@ -42,6 +44,7 @@ def confirmation_node(state: AssistantState, config: RunnableConfig):
 
     published: list[Activity] = []
     rejected: list[Activity] = []
+    blocked: list[BlockedActivity] = []
 
     for decision in resumed["decisions"]:
         activity = activities[decision["index"]]
@@ -66,10 +69,23 @@ def confirmation_node(state: AssistantState, config: RunnableConfig):
             if "notes" in fields:
                 activity.notes = fields["notes"]
 
+        if activity.start is not None and activity.end is not None and activity.end <= activity.start:
+            blocked.append(BlockedActivity(activity=activity, reason="zero_duration"))
+            continue
+
+        conflicts = find_overlapping_activities(doctor.id, activity.start, activity.end)
+        if conflicts:
+            blocked.append(BlockedActivity(activity=activity, reason="overlap", conflicts=conflicts))
+            continue
+
         activity.id = str(uuid4())
         write_logged_activity(doctor, activity)
         published.append(activity)
 
         ## Here after writing to the Graph DB need to publish to kafka
 
-    return {"published_activities": published, "rejected_activities": rejected}
+    return {
+        "published_activities": published,
+        "rejected_activities": rejected,
+        "blocked_activities": blocked,
+    }

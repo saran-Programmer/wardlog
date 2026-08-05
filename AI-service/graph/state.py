@@ -4,6 +4,7 @@ from langgraph.graph.message import add_messages
 
 from .models.activity import Activity
 from .models.activity_details import ActivityDetails
+from .models.blocked_activity import BlockedActivity
 from .models.consultation import Consultation
 from .models.patient_details import PatientDetails
 from .models.report_extraction import ReportExtraction
@@ -20,6 +21,7 @@ class AssistantState(TypedDict):
     followup_messages: list[str]
     published_activities: list[Activity]
     rejected_activities: list[Activity]
+    blocked_activities: NotRequired[Optional[list[BlockedActivity]]]
     consultation: Optional[Consultation]
     return_to: Optional[str]
     resolved_activity_id: Optional[str]

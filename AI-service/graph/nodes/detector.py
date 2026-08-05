@@ -50,6 +50,7 @@ def detector_node(state: AssistantState):
         "followup_messages": [],
         "published_activities": [],
         "rejected_activities": [],
+        "blocked_activities": [],
         "consultation_saved": None,
         "document_rejection_reason": None,
         "report_saved": None,

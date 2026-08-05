@@ -2,6 +2,7 @@ from datetime import datetime
 
 from ..config import DoctorContext
 from ..models.activity import Activity
+from ..models.blocked_activity import BlockedActivity
 from ..models.consultation import Consultation
 from ..models.report_extraction import ReportExtraction
 from ..state import AssistantState
@@ -52,6 +53,22 @@ def describe_activity(activity: Activity) -> str:
 
 def _activity_lines(activities: list[Activity]) -> str:
     return "\n".join(f"- {describe_activity(activity)}" for activity in activities)
+
+
+def _blocked_lines(blocked: list[BlockedActivity]) -> str:
+    """Render blocked activities with the specific reason each could not be logged."""
+    lines = []
+    for entry in blocked:
+        if entry.reason == "zero_duration":
+            lines.append(
+                f"- {describe_activity(entry.activity)} — start and end are the same, so it has no duration"
+            )
+        else:
+            clash = "; ".join(describe_activity(c) for c in entry.conflicts or [])
+            lines.append(
+                f"- {describe_activity(entry.activity)} — clashes with already logged: {clash}"
+            )
+    return "\n".join(lines)
 
 
 def describe_report(report: ReportExtraction) -> str:
@@ -284,6 +301,19 @@ class GeneratorPrompt(BasePrompt):
         "message."
     )
 
+    BLOCKED_FRAGMENT_TEMPLATE = (
+        "Could not be logged:\n"
+        "{items}\n\n"
+        "These were NOT logged. Tell the doctor which ones failed and why, naming each "
+        "specifically — the activity and its times, and for a clash, the already-logged "
+        "activity it conflicts with, exactly as given above. Do not be vague.\n"
+        "If other activities in this same turn WERE logged, make clear that those went "
+        "through and only these did not, so the doctor understands the partial outcome.\n"
+        "Invite them to give corrected times for the ones that failed. Keep it ordinary "
+        "conversation in keeping with your tone and rush settings above — no error-message "
+        "wording, no lengthy apology."
+    )
+
     def build(self, doctor: DoctorContext, state: AssistantState) -> str:
         parts = self._content(doctor, state)
         parts.append(self.doctor_info_block(doctor))
@@ -374,6 +404,12 @@ class GeneratorPrompt(BasePrompt):
         if rejected:
             parts.append(
                 self.REJECTED_FRAGMENT_TEMPLATE.format(items=_activity_lines(rejected))
+            )
+
+        blocked = state.get("blocked_activities") or []
+        if blocked:
+            parts.append(
+                self.BLOCKED_FRAGMENT_TEMPLATE.format(items=_blocked_lines(blocked))
             )
 
         return parts

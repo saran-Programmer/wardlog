@@ -45,6 +45,28 @@ def find_activities(
     return [_to_activity(node) for node in nodes]
 
 
+def find_overlapping_activities(doctor_id: str, start: datetime, end: datetime) -> list[Activity]:
+    query = """
+    MATCH (d:Doctor {id: $doctor_id})-[:LOGGED]->(a:Activity)
+    WHERE a.start < $end AND a.end > $start
+    RETURN a
+    ORDER BY a.start
+    """
+
+    def _read(tx):
+        return [record["a"] for record in tx.run(
+            query,
+            doctor_id=doctor_id,
+            start=start.isoformat(),
+            end=end.isoformat(),
+        )]
+
+    with driver.session() as session:
+        nodes = session.execute_read(_read)
+
+    return [_to_activity(node) for node in nodes]
+
+
 def _to_activity(node) -> Activity:
     return Activity(
         id=node.get("id"),
