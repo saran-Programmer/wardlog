@@ -1,0 +1,95 @@
+import os
+import tempfile
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, File, Form, UploadFile
+from pydantic import BaseModel
+
+from auth.token import get_doctor_context
+from graph.config import DoctorContext
+from service.conversation_service import (
+    get_messages,
+    list_conversations,
+    resume,
+    send_message,
+    start_conversation,
+)
+
+router = APIRouter(prefix="/api/v1")
+
+
+class SendMessageRequest(BaseModel):
+    message: str
+    rush: bool = False
+    voice_output: bool = False
+
+
+class ResumeRequest(BaseModel):
+    choice: str
+    text: str | None = None
+    rush: bool = False
+    voice_output: bool = False
+
+
+def _with_request_flags(doctor: DoctorContext, rush: bool, voice_output: bool) -> DoctorContext:
+    return doctor.model_copy(update={"rush": rush, "voice_output": voice_output})
+
+
+@router.post("/conversations")
+def create_conversation(doctor: DoctorContext = Depends(get_doctor_context)):
+    conversation_id = start_conversation(doctor.id)
+    return {"conversation_id": str(conversation_id)}
+
+
+@router.post("/conversations/{conversation_id}/messages")
+def post_message(
+    conversation_id: UUID,
+    body: SendMessageRequest,
+    doctor: DoctorContext = Depends(get_doctor_context),
+):
+    full_doctor = _with_request_flags(doctor, body.rush, body.voice_output)
+    return send_message(conversation_id, full_doctor, body.message)
+
+
+@router.post("/conversations/{conversation_id}/resume")
+def post_resume(
+    conversation_id: UUID,
+    body: ResumeRequest,
+    doctor: DoctorContext = Depends(get_doctor_context),
+):
+    full_doctor = _with_request_flags(doctor, body.rush, body.voice_output)
+    resume_value = {"choice": body.choice}
+    if body.text is not None:
+        resume_value["text"] = body.text
+    return resume(conversation_id, full_doctor, resume_value)
+
+
+@router.get("/conversations/{conversation_id}/messages")
+def get_conversation_messages(
+    conversation_id: UUID, doctor: DoctorContext = Depends(get_doctor_context)
+):
+    return get_messages(conversation_id)
+
+
+@router.get("/conversations")
+def get_conversations(doctor: DoctorContext = Depends(get_doctor_context)):
+    return list_conversations(doctor.id)
+
+
+@router.post("/conversations/{conversation_id}/documents")
+def post_document(
+    conversation_id: UUID,
+    file: UploadFile = File(...),
+    message: str = Form(""),
+    rush: bool = Form(False),
+    voice_output: bool = Form(False),
+    doctor: DoctorContext = Depends(get_doctor_context),
+):
+    full_doctor = _with_request_flags(doctor, rush, voice_output)
+
+    suffix = os.path.splitext(file.filename or "")[1]
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(file.file.read())
+        temp_path = tmp.name
+
+    return send_message(conversation_id, full_doctor, message, temp_path)

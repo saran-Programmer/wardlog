@@ -177,6 +177,7 @@ def build_graph():
     )
     builder.add_edge(VOICE_OUTPUT_NODE, END)
 
+    # TODO: should check for writing in redis
     return builder.compile(checkpointer=InMemorySaver(serde=CHECKPOINT_SERDE))
 
 

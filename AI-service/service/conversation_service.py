@@ -76,7 +76,7 @@ def _finalize(conversation_id: UUID, result: dict) -> dict:
     return {
         "status": "reply",
         "reply": last_ai_content,
-        "audio_path": result.get("audio_path"),
+        "audio_base64": result.get("audio_base64"),
     }
 
 
