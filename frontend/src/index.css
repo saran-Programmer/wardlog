@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@theme {
+  /* Surfaces */
+  --color-bg: #15181a;
+  --color-surface: #1b1f22;
+  --color-surface-raised: #1d2124;
+  --color-input: #22272a;
+
+  /* Accent (teal) */
+  --color-accent: #17a398;
+  --color-accent-strong: #3ecebd;
+  --color-accent-muted: #173430;
+
+  /* Activity type colours */
+  --color-clinic: #3ecebd;
+  --color-surgery: #f4c876;
+  --color-oncall: #7fa8e8;
+  --color-onsite-oncall: #c9a6f0;
+
+  /* Text */
+  --color-text: #f5f7f7;
+  --color-text-muted: #9aa4a8;
+  --color-text-subtle: #6b7478;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
