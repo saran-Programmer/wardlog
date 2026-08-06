@@ -1,9 +1,9 @@
 package com.wardlog.userservice.service;
 
 import com.wardlog.userservice.dto.AuthResponse;
+import com.wardlog.userservice.dto.AuthTokens;
 import com.wardlog.userservice.dto.UserResponse;
 import com.wardlog.userservice.dto.LoginRequest;
-import com.wardlog.userservice.dto.RefreshRequest;
 import com.wardlog.userservice.dto.RegisterRequest;
 import com.wardlog.userservice.entity.User;
 import com.wardlog.userservice.exception.UserNotFoundException;
@@ -13,9 +13,15 @@ import com.wardlog.userservice.repository.UserRepository;
 import com.wardlog.userservice.security.JwtService;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.UUID;
 
 @Service
@@ -23,12 +29,17 @@ import java.util.UUID;
 public class AuthService {
 
     private static final String INVALID_CREDENTIALS_MESSAGE = "Invalid email or password";
+    private static final String REFRESH_COOKIE_NAME = "refreshToken";
+    private static final String REFRESH_COOKIE_PATH = "/api/v1/auth";
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
-    public AuthResponse register(RegisterRequest request) {
+    @Value("${jwt.refresh-token-days}")
+    private long refreshTokenDays;
+
+    public ResponseEntity<AuthResponse> register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new EmailAlreadyExistsException("An account with this email already exists");
         }
@@ -45,10 +56,10 @@ public class AuthService {
                 .build();
 
         User saved = userRepository.save(user);
-        return buildAuthResponse(saved);
+        return withRefreshCookie(buildAuthTokens(saved), HttpStatus.CREATED);
     }
 
-    public AuthResponse login(LoginRequest request) {
+    public ResponseEntity<AuthResponse> login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new InvalidCredentialsException(INVALID_CREDENTIALS_MESSAGE));
 
@@ -56,11 +67,15 @@ public class AuthService {
             throw new InvalidCredentialsException(INVALID_CREDENTIALS_MESSAGE);
         }
 
-        return buildAuthResponse(user);
+        return withRefreshCookie(buildAuthTokens(user), HttpStatus.OK);
     }
 
-    public AuthResponse refresh(RefreshRequest request) {
-        Claims claims = jwtService.parseToken(request.getRefreshToken());
+    public ResponseEntity<AuthResponse> refresh(String refreshToken) {
+        if (refreshToken == null) {
+            throw new InvalidCredentialsException("Missing refresh token");
+        }
+
+        Claims claims = jwtService.parseToken(refreshToken);
 
         if (!jwtService.isRefreshToken(claims)) {
             throw new InvalidCredentialsException("Token is not a refresh token");
@@ -70,17 +85,49 @@ public class AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("User not found: " + userId));
 
-        String accessToken = jwtService.generateAccessToken(user);
-
-        return AuthResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(request.getRefreshToken())
+        AuthResponse body = AuthResponse.builder()
+                .accessToken(jwtService.generateAccessToken(user))
                 .user(toUserResponse(user))
+                .build();
+
+        return ResponseEntity.ok(body);
+    }
+
+    public ResponseEntity<Void> logout() {
+        ResponseCookie expiredCookie = ResponseCookie.from(REFRESH_COOKIE_NAME, "")
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("None")
+                .path(REFRESH_COOKIE_PATH)
+                .maxAge(0)
+                .build();
+
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, expiredCookie.toString())
                 .build();
     }
 
-    private AuthResponse buildAuthResponse(User user) {
-        return AuthResponse.builder()
+    private ResponseEntity<AuthResponse> withRefreshCookie(AuthTokens tokens, HttpStatus status) {
+        ResponseCookie refreshCookie = ResponseCookie.from(REFRESH_COOKIE_NAME, tokens.getRefreshToken())
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("None")
+                .path(REFRESH_COOKIE_PATH)
+                .maxAge(Duration.ofDays(refreshTokenDays))
+                .build();
+
+        AuthResponse body = AuthResponse.builder()
+                .accessToken(tokens.getAccessToken())
+                .user(tokens.getUser())
+                .build();
+
+        return ResponseEntity.status(status)
+                .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
+                .body(body);
+    }
+
+    private AuthTokens buildAuthTokens(User user) {
+        return AuthTokens.builder()
                 .accessToken(jwtService.generateAccessToken(user))
                 .refreshToken(jwtService.generateRefreshToken(user))
                 .user(toUserResponse(user))
