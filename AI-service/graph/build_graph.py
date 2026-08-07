@@ -23,8 +23,8 @@ from .constants import (
     ROUTE_REPORT_SAVER,
     ROUTE_VOICE_OUTPUT,
 )
-from .nodes.confirmation import NODE_NAME as CONFIRMATION_NODE
-from .nodes.confirmation import confirmation_node
+from .nodes.activity_confirmation import NODE_NAME as CONFIRMATION_NODE
+from .nodes.activity_confirmation import confirmation_node
 from .nodes.detector import NODE_NAME as DETECTOR_NODE
 from .nodes.detector import detector_node, route_after_detector
 from .nodes.activity_extractor import NODE_NAME as EXTRACTOR_NODE
