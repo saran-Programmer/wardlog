@@ -9,13 +9,16 @@ from fastapi import FastAPI
 from api.routes import router
 from db.connection import close_driver, verify_connection
 from db.postgres import create_tables
+from messaging.timesheet_consumer import start_timesheet_consumer, stop_timesheet_consumer
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_tables()
     verify_connection()
+    start_timesheet_consumer()
     yield
+    stop_timesheet_consumer()
     close_driver()
 
 

@@ -1,18 +1,19 @@
 from datetime import datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import interrupt
 
 from db.activity_fetcher import find_overlapping_activities
 from db.activity_saver import write_logged_activity
+from messaging.kafka_producer import publish_activity
 
 from ..config import DoctorContext
 from ..models.activity import Activity
 from ..models.blocked_activity import BlockedActivity
 from ..state import AssistantState
 
-NODE_NAME = "confirmation"
+NODE_NAME = "activity_confirmation"
 
 
 def confirmation_node(state: AssistantState, config: RunnableConfig):
@@ -82,7 +83,15 @@ def confirmation_node(state: AssistantState, config: RunnableConfig):
         write_logged_activity(doctor, activity)
         published.append(activity)
 
-        ## Here after writing to the Graph DB need to publish to kafka
+        publish_activity(
+            id=UUID(activity.id),
+            doctorId=UUID(doctor.id),
+            activityType=activity.name,
+            startDateTime=activity.start,
+            endDateTime=activity.end,
+            location=activity.location,
+            notes=activity.notes,
+        )
 
     return {
         "published_activities": published,

@@ -12,16 +12,18 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -35,10 +37,13 @@ public class ActivityController {
     private final ActivityValidator activityValidator;
     private final ActivityService activityService;
 
-    @PostMapping
-    public ResponseEntity<ActivityResponse> createActivity(@Valid @RequestBody CreateActivityRequest request) {
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ActivityResponse> createActivity(
+            @Valid @RequestPart("activity") CreateActivityRequest request,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files) {
+
         activityValidator.validateCreate(request);
-        ActivityResponse response = activityService.createActivity(request);
+        ActivityResponse response = activityService.createActivity(request, files);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -48,13 +53,16 @@ public class ActivityController {
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/{activityId}")
+    @PutMapping(value = "/{activityId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ActivityResponse> updateActivity(
-            @PathVariable UUID activityId, @Valid @RequestBody UpdateActivityRequest request) {
+            @PathVariable UUID activityId,
+            @Valid @RequestPart("activity") UpdateActivityRequest request,
+            @RequestPart(value = "newFiles", required = false) List<MultipartFile> newFiles,
+            @RequestParam(value = "removeDocumentIds", required = false) List<UUID> removeDocumentIds) {
 
         activityValidator.validateUpdate(request);
-        
-        ActivityResponse response = activityService.updateActivity(activityId, request);
+
+        ActivityResponse response = activityService.updateActivity(activityId, request, newFiles, removeDocumentIds);
         return ResponseEntity.ok(response);
     }
 

@@ -245,7 +245,8 @@ public class ReportService {
                 activity.getLocation(),
                 activity.getNotes(),
                 activity.getCreatedDate(),
-                activity.getLastModifiedDate()
+                activity.getLastModifiedDate(),
+                List.of()
         );
     }
 }

@@ -1,11 +1,13 @@
 from typing import Optional
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 
 from db.normalize import strip_honorifics
 from db.patient_fetcher import find_patient_details
 
+from ..config import DoctorContext
 from ..constants import ROUTE_GENERATOR, ROUTE_PATIENT_DETAILS_GENERATOR
 from ..state import AssistantState
 from .llm import get_llm
@@ -27,7 +29,14 @@ class PatientNameQuery(BaseModel):
     )
 
 
-def patient_details_fetcher_node(state: AssistantState):
+def patient_details_fetcher_node(state: AssistantState, config: RunnableConfig):
+    doctor = DoctorContext(
+        **{
+            k: v
+            for k, v in config["configurable"].items()
+            if k in DoctorContext.model_fields
+        }
+    )
     messages = state["messages"]
     last = messages[-1] if messages else None
     doctor_message = last.content if last is not None else ""
@@ -47,7 +56,7 @@ def patient_details_fetcher_node(state: AssistantState):
         return {"patient_not_found": ""}
 
     patient_name = strip_honorifics(result.patient_name)
-    patient_data = find_patient_details(patient_name)
+    patient_data = find_patient_details(doctor.id, patient_name)
 
     if patient_data is None:
         return {"patient_not_found": patient_name}
