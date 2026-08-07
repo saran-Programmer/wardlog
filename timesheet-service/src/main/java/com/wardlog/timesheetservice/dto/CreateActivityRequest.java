@@ -21,11 +21,6 @@ public class CreateActivityRequest {
     // Optional — may be supplied (AI path) or null (UI path).
     private UUID id;
 
-    // WORKAROUND: doctorId is accepted in the payload for now. In the real implementation
-    // this must be derived from the auth token, not trusted from the request body.
-    @NotNull
-    private UUID doctorId;
-
     @NotNull
     private ActivityType activityType;
 

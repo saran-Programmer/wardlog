@@ -40,15 +40,15 @@ public class ActivityService {
     private final S3StorageService s3StorageService;
     private final ActivityEventPublisher activityEventPublisher;
 
-    public ActivityResponse createActivity(CreateActivityRequest request, List<MultipartFile> files) {
-        Activity activity = toEntity(request);
+    public ActivityResponse createActivity(CreateActivityRequest request, UUID doctorId, List<MultipartFile> files) {
+        Activity activity = toEntity(request, doctorId);
 
         // Closed-month enforcement point: an activity belongs to the month of its
         // startDateTime only. Edit/delete will reuse this same guard when built.
-        timesheetClosureService.assertMonthOpenForActivity(request.getDoctorId(), request.getStartDateTime());
+        timesheetClosureService.assertMonthOpenForActivity(doctorId, request.getStartDateTime());
 
         if (activityRepository.existsOverlappingActivity(
-                request.getDoctorId(), request.getStartDateTime(), request.getEndDateTime(), null)) {
+                doctorId, request.getStartDateTime(), request.getEndDateTime(), null)) {
             throw new ActivityOverlapException(
                     "Activity overlaps with an existing activity for this doctor");
         }
@@ -222,14 +222,14 @@ public class ActivityService {
         return summedMinutes.getOrDefault(type, 0L);
     }
 
-    private Activity toEntity(CreateActivityRequest request) {
+    private Activity toEntity(CreateActivityRequest request, UUID doctorId) {
         // Assigned here (rather than left to Activity's @PrePersist) so the id is
         // available up front to build S3 keys before the entity is saved.
         UUID id = request.getId() != null ? request.getId() : UUID.randomUUID();
 
         return Activity.builder()
                 .id(id)
-                .doctorId(request.getDoctorId())
+                .doctorId(doctorId)
                 .activityType(request.getActivityType())
                 .startDateTime(request.getStartDateTime())
                 .endDateTime(request.getEndDateTime())

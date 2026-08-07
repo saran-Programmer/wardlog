@@ -20,8 +20,7 @@ public class TimesheetClosureService {
 
     private final MonthClosureRepository monthClosureRepository;
 
-    public MonthClosureResponse closeMonth(CloseMonthRequest request) {
-        UUID doctorId = request.getDoctorId();
+    public MonthClosureResponse closeMonth(CloseMonthRequest request, UUID doctorId) {
         int year = request.getYear();
         int month = request.getMonth();
 

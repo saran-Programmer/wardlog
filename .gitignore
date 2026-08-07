@@ -6,3 +6,4 @@ graphify-out/
 .vscode/settings.json
 
 *.txt
+*.pem
