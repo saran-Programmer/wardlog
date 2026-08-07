@@ -10,22 +10,22 @@ spring:
         webflux:
           routes:
             - id: user-service-auth
-              uri: ${USER_SERVICE_URL:http://localhost:9100}
+              uri: lb://user-microservice
               predicates:
                 - Path=/api/v1/auth/**
             - id: user-service
-              uri: ${USER_SERVICE_URL:http://localhost:9100}
+              uri: lb://user-microservice
               predicates:
                 - Path=/api/v1/users/**
             - id: timesheet-service
-              uri: ${TIMESHEET_SERVICE_URL:http://localhost:9000}
+              uri: lb://timesheet-service
               predicates:
                 - Path=/api/v1/activities/**,/api/v1/timesheet/**
             - id: ai-service
-              uri: ${AI_SERVICE_URL:http://localhost:8000}
+              uri: lb://ai-service
               predicates:
                 - Path=/api/v1/conversations/**
-
+   
 jwt:
   secret: ${JWT_SECRET}
 
@@ -34,6 +34,13 @@ security:
     - /api/v1/auth/login
     - /api/v1/auth/register
     - /api/v1/auth/refresh
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka}
+  instance:
+    prefer-ip-address: true
 
 management:
   endpoints:

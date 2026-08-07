@@ -1,0 +1,24 @@
+server:
+  port: ${SERVER_PORT:8761}
+
+spring:
+  application:
+    name: discovery
+
+eureka:
+  client:
+    # Standalone server: it doesn't need to register with itself or fetch a registry.
+    register-with-eureka: false
+    fetch-registry: false
+    service-url:
+      defaultZone: http://localhost:${server.port}/eureka
+  server:
+    # Local dev/single-node: skip the self-preservation heartbeat-loss tolerance,
+    # so a deregistered instance disappears immediately instead of lingering.
+    enable-self-preservation: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

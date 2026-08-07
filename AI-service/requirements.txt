@@ -15,3 +15,4 @@ psycopg[binary]
 pyjwt
 boto3
 kafka-python
+py-eureka-client
