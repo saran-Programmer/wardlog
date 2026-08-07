@@ -8,12 +8,15 @@ import com.wardlog.timesheetservice.dto.DocumentResponse;
 import com.wardlog.timesheetservice.dto.UpdateActivityRequest;
 import com.wardlog.timesheetservice.entity.Activity;
 import com.wardlog.timesheetservice.entity.Document;
+import com.wardlog.timesheetservice.entity.Patient;
 import com.wardlog.timesheetservice.enums.ActivityType;
 import com.wardlog.timesheetservice.exception.ActivityNotFoundException;
 import com.wardlog.timesheetservice.exception.ActivityOverlapException;
+import com.wardlog.timesheetservice.messaging.ActivityEventPublisher;
 import com.wardlog.timesheetservice.repository.ActivityRepository;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.hibernate.Hibernate;
 import org.springframework.data.jpa.domain.Specification;
@@ -29,11 +32,13 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ActivityService {
 
     private final ActivityRepository activityRepository;
     private final TimesheetClosureService timesheetClosureService;
     private final S3StorageService s3StorageService;
+    private final ActivityEventPublisher activityEventPublisher;
 
     public ActivityResponse createActivity(CreateActivityRequest request, List<MultipartFile> files) {
         Activity activity = toEntity(request);
@@ -51,7 +56,24 @@ public class ActivityService {
         addDocuments(activity, files);
 
         Activity saved = activityRepository.save(activity);
+        activityEventPublisher.publishActivityCreated(saved);
         return toResponse(saved);
+    }
+
+    /**
+     * Attaches patient details (from the AI Service's patient event) to an already-persisted
+     * activity. Logs and returns if the activity isn't found — the caller is a Kafka listener
+     * and must not throw on a missing activity.
+     */
+    public void attachPatient(UUID activityId, Patient patient) {
+        Activity activity = activityRepository.findById(activityId).orElse(null);
+        if (activity == null) {
+            log.error("Received patient event for unknown activity {}", activityId);
+            return;
+        }
+
+        activity.setPatient(patient);
+        activityRepository.save(activity);
     }
 
     public ActivityResponse getActivityById(UUID activityId) {
@@ -81,6 +103,7 @@ public class ActivityService {
         addDocuments(existing, newFiles);
 
         Activity saved = activityRepository.save(existing);
+        activityEventPublisher.publishActivityUpdated(saved);
         return toResponse(saved);
     }
 
@@ -91,6 +114,7 @@ public class ActivityService {
         s3StorageService.deleteAll(activity.getDocuments().stream().map(Document::getS3Key).toList());
 
         activityRepository.deleteById(activityId);
+        activityEventPublisher.publishActivityDeleted(activity);
     }
 
     /** Uploads each file to S3 under the activity's prefix and attaches it as a new Document. */

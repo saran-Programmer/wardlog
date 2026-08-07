@@ -3,6 +3,7 @@ package com.wardlog.timesheetservice.entity;
 import com.wardlog.timesheetservice.enums.ActivityType;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
@@ -104,6 +105,13 @@ public class Activity {
     @OneToMany(mappedBy = "activity", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<Document> documents = new ArrayList<>();
+
+    /**
+     * Patient details for this activity's encounter. Null until the AI Service's
+     * patient event arrives on "ai-to-timesheet-patient" and attaches it.
+     */
+    @Embedded
+    private Patient patient;
 
     /**
      * JPA allows only one @PrePersist method per entity class, so id-assignment and

@@ -20,6 +20,8 @@ spring:
     multipart:
       max-file-size: 25MB
       max-request-size: 50MB
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKER:localhost:9092}
 
 aws:
   access-key-id: ${AWS_ACCESS_KEY_ID}
