@@ -4,6 +4,7 @@ import com.wardlog.timesheetservice.enums.ActivityType;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 public record ActivityResponse(
@@ -26,6 +27,8 @@ public record ActivityResponse(
 
         Instant createdDate,
 
-        Instant lastModifiedDate
+        Instant lastModifiedDate,
+
+        List<DocumentResponse> documents
 ) {
 }

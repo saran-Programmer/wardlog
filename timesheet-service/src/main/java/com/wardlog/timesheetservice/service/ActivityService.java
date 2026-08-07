@@ -4,8 +4,10 @@ import com.wardlog.timesheetservice.dto.ActivityListResponse;
 import com.wardlog.timesheetservice.dto.ActivityMetaResponse;
 import com.wardlog.timesheetservice.dto.ActivityResponse;
 import com.wardlog.timesheetservice.dto.CreateActivityRequest;
+import com.wardlog.timesheetservice.dto.DocumentResponse;
 import com.wardlog.timesheetservice.dto.UpdateActivityRequest;
 import com.wardlog.timesheetservice.entity.Activity;
+import com.wardlog.timesheetservice.entity.Document;
 import com.wardlog.timesheetservice.enums.ActivityType;
 import com.wardlog.timesheetservice.exception.ActivityNotFoundException;
 import com.wardlog.timesheetservice.exception.ActivityOverlapException;
@@ -13,8 +15,10 @@ import com.wardlog.timesheetservice.repository.ActivityRepository;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 
+import org.hibernate.Hibernate;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -29,8 +33,9 @@ public class ActivityService {
 
     private final ActivityRepository activityRepository;
     private final TimesheetClosureService timesheetClosureService;
+    private final S3StorageService s3StorageService;
 
-    public ActivityResponse createActivity(CreateActivityRequest request) {
+    public ActivityResponse createActivity(CreateActivityRequest request, List<MultipartFile> files) {
         Activity activity = toEntity(request);
 
         // Closed-month enforcement point: an activity belongs to the month of its
@@ -43,18 +48,21 @@ public class ActivityService {
                     "Activity overlaps with an existing activity for this doctor");
         }
 
+        addDocuments(activity, files);
+
         Activity saved = activityRepository.save(activity);
         return toResponse(saved);
     }
 
     public ActivityResponse getActivityById(UUID activityId) {
-        Activity activity = activityRepository.findById(activityId)
+        Activity activity = activityRepository.findByIdWithDocuments(activityId)
                 .orElseThrow(() -> new ActivityNotFoundException("Activity not found: " + activityId));
         return toResponse(activity);
     }
 
-    public ActivityResponse updateActivity(UUID activityId, UpdateActivityRequest request) {
-        Activity existing = activityRepository.findById(activityId)
+    public ActivityResponse updateActivity(UUID activityId, UpdateActivityRequest request,
+                                            List<MultipartFile> newFiles, List<UUID> removeDocumentIds) {
+        Activity existing = activityRepository.findByIdWithDocuments(activityId)
                 .orElseThrow(() -> new ActivityNotFoundException("Activity not found: " + activityId));
 
         if (activityRepository.existsOverlappingActivity(
@@ -69,17 +77,52 @@ public class ActivityService {
         existing.setLocation(request.getLocation());
         existing.setNotes(request.getNotes());
 
+        removeDocuments(existing, removeDocumentIds);
+        addDocuments(existing, newFiles);
+
         Activity saved = activityRepository.save(existing);
         return toResponse(saved);
     }
 
     public void deleteActivity(UUID activityId) {
+        Activity activity = activityRepository.findByIdWithDocuments(activityId)
+                .orElseThrow(() -> new ActivityNotFoundException("Activity not found: " + activityId));
 
-        if (!activityRepository.existsById(activityId)) {
-            
-            throw new ActivityNotFoundException("Activity not found: " + activityId);
-        }
+        s3StorageService.deleteAll(activity.getDocuments().stream().map(Document::getS3Key).toList());
+
         activityRepository.deleteById(activityId);
+    }
+
+    /** Uploads each file to S3 under the activity's prefix and attaches it as a new Document. */
+    private void addDocuments(Activity activity, List<MultipartFile> files) {
+        if (files == null) {
+            return;
+        }
+        for (MultipartFile file : files) {
+            String key = s3StorageService.upload("activities/" + activity.getId(), file);
+
+            activity.getDocuments().add(Document.builder()
+                    .fileName(file.getOriginalFilename())
+                    .s3Key(key)
+                    .contentType(file.getContentType())
+                    .fileSizeBytes(file.getSize())
+                    .activity(activity)
+                    .build());
+        }
+    }
+
+    /** Deletes the matching documents from S3 and detaches them (orphanRemoval deletes the rows on save). */
+    private void removeDocuments(Activity activity, List<UUID> removeDocumentIds) {
+        if (removeDocumentIds == null || removeDocumentIds.isEmpty()) {
+            return;
+        }
+
+        List<Document> toRemove = activity.getDocuments().stream()
+                .filter(document -> removeDocumentIds.contains(document.getId()))
+                .toList();
+
+        s3StorageService.deleteAll(toRemove.stream().map(Document::getS3Key).toList());
+        activity.getDocuments().removeAll(toRemove);
     }
 
     public ActivityListResponse getActivities(LocalDate startDate,
@@ -156,8 +199,12 @@ public class ActivityService {
     }
 
     private Activity toEntity(CreateActivityRequest request) {
+        // Assigned here (rather than left to Activity's @PrePersist) so the id is
+        // available up front to build S3 keys before the entity is saved.
+        UUID id = request.getId() != null ? request.getId() : UUID.randomUUID();
+
         return Activity.builder()
-                .id(request.getId())
+                .id(id)
                 .doctorId(request.getDoctorId())
                 .activityType(request.getActivityType())
                 .startDateTime(request.getStartDateTime())
@@ -168,6 +215,12 @@ public class ActivityService {
     }
 
     private ActivityResponse toResponse(Activity activity) {
+        // documents is LAZY; only map it when already initialized (detail/create/update
+        // paths fetch or populate it) so list views never trigger a load.
+        List<DocumentResponse> documents = Hibernate.isInitialized(activity.getDocuments())
+                ? activity.getDocuments().stream().map(this::toDocumentResponse).toList()
+                : List.of();
+
         return new ActivityResponse(
                 activity.getId(),
                 activity.getDoctorId(),
@@ -178,7 +231,20 @@ public class ActivityService {
                 activity.getLocation(),
                 activity.getNotes(),
                 activity.getCreatedDate(),
-                activity.getLastModifiedDate()
+                activity.getLastModifiedDate(),
+                documents
+        );
+    }
+
+    private DocumentResponse toDocumentResponse(Document document) {
+        return new DocumentResponse(
+                document.getId(),
+                document.getFileName(),
+                document.getS3Key(),
+                s3StorageService.urlFor(document.getS3Key()),
+                document.getContentType(),
+                document.getFileSizeBytes(),
+                document.getCreatedDate()
         );
     }
 }

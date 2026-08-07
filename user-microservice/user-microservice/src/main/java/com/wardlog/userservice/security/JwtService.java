@@ -43,7 +43,7 @@ public class JwtService {
                 .claim(JwtClaimNames.TONE, user.getTone() != null ? user.getTone().getLabel() : null)
                 .claim(JwtClaimNames.ASSISTANT_NAME, user.getAssistantName())
                 .issuedAt(Date.from(now))
-                .expiration(Date.from(now.plus(accessTokenMinutes, ChronoUnit.MINUTES)))
+                .expiration(Date.from(now.plus(accessTokenMinutes, ChronoUnit.HOURS)))
                 .signWith(signingKey)
                 .compact();
     }
