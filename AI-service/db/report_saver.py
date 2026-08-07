@@ -7,10 +7,11 @@ from .connection import driver
 from .normalize import normalize_key
 
 _WRITE_REPORT_QUERY = """
-MERGE (p:Patient {key: $patient_key})
+MERGE (p:Patient {key: $patient_key, doctorId: $doctor_id})
   SET p.name = $patient_name
 CREATE (r:Report {
   id: $id,
+  doctorId: $doctor_id,
   report_type: $report_type,
   report_date: $report_date,
   findings: $findings,
@@ -22,12 +23,15 @@ MERGE (p)-[:HAS_REPORT]->(r)
 """
 
 
-def save_report(report: ReportExtraction, file_url: Optional[str] = None) -> str:
+def save_report(
+    doctor_id: str, report: ReportExtraction, file_url: Optional[str] = None
+) -> str:
     report_id = str(uuid4())
 
     def _write(tx):
         tx.run(
             _WRITE_REPORT_QUERY,
+            doctor_id=doctor_id,
             patient_key=normalize_key(report.patient_name),
             patient_name=report.patient_name,
             id=report_id,

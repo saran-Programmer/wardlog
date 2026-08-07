@@ -2,6 +2,7 @@ from langchain_core.runnables import RunnableConfig
 
 from db.activity_detail_fetcher import find_activity_details
 
+from ..config import DoctorContext
 from ..constants import (
     ROUTE_ACTIVITY_DETAILS_GENERATOR,
     ROUTE_ACTIVITY_LOOKUP,
@@ -27,7 +28,14 @@ def activity_lookup_node(state: AssistantState, config: RunnableConfig):
             result["activity_not_found"] = True
         return result
 
-    data = find_activity_details(resolved_activity_id)
+    doctor = DoctorContext(
+        **{
+            k: v
+            for k, v in config["configurable"].items()
+            if k in DoctorContext.model_fields
+        }
+    )
+    data = find_activity_details(doctor.id, resolved_activity_id)
     if data is None:
         return {"activity_not_found": True}
 

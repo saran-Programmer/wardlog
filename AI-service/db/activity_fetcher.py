@@ -30,7 +30,7 @@ def find_activities(
     where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
     query = f"""
-    MATCH (d:Doctor {{id: $doctor_id}})-[:LOGGED]->(a:Activity)
+    MATCH (d:Doctor {{id: $doctor_id}})-[:LOGGED]->(a:Activity {{doctorId: $doctor_id}})
     {where_clause}
     RETURN a
     ORDER BY a.start
@@ -47,7 +47,7 @@ def find_activities(
 
 def find_overlapping_activities(doctor_id: str, start: datetime, end: datetime) -> list[Activity]:
     query = """
-    MATCH (d:Doctor {id: $doctor_id})-[:LOGGED]->(a:Activity)
+    MATCH (d:Doctor {id: $doctor_id})-[:LOGGED]->(a:Activity {doctorId: $doctor_id})
     WHERE a.start < $end AND a.end > $start
     RETURN a
     ORDER BY a.start
