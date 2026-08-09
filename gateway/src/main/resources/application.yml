@@ -8,6 +8,16 @@ spring:
     gateway:
       server:
         webflux:
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowedOriginPatterns:
+                  - "*"
+                allowedMethods:
+                  - "*"
+                allowedHeaders:
+                  - "*"
+                allowCredentials: true
           routes:
             - id: user-service-auth
               uri: lb://user-microservice
@@ -25,9 +35,9 @@ spring:
               uri: lb://ai-service
               predicates:
                 - Path=/api/v1/conversations/**
-   
+
 jwt:
-  secret: ${JWT_SECRET}
+  secret: Ij86dwGTkT1K9jMS1DIzUDkttmHMPP01VgG8tWRYgxUFIQCFRe+NdXpP2HHco2UYPdRqh80ZzIDF2wdgiJ6fow==
 
 security:
   public-paths:

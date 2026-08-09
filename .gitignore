@@ -8,3 +8,5 @@ graphify-out/
 *.txt
 *.pem
 ai-service.zip
+frontend/.env.development
+frontend/.env.production
