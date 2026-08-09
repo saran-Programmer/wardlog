@@ -8,6 +8,7 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
@@ -26,8 +27,13 @@ public class KafkaProducerConfig {
      * Dedicated to Kafka payloads so LocalDateTime fields (e.g. ActivityEvent.startDateTime)
      * always serialize as ISO-8601 strings, not epoch arrays — required by the Python
      * consumer regardless of how the app's general Jackson config evolves.
+     *
+     * Marked @Primary so Spring's HTTP message converter has an unambiguous ObjectMapper
+     * to inject now that a second ObjectMapper bean (kafkaConsumerObjectMapper) exists;
+     * its config matches what Spring Boot's default HTTP ObjectMapper would use anyway.
      */
     @Bean
+    @Primary
     public ObjectMapper kafkaObjectMapper() {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());

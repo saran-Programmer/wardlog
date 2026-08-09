@@ -6,8 +6,6 @@ S3_BUCKET = os.environ.get("S3_BUCKET")
 
 _client = boto3.client(
     "s3",
-    aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID") or None,
-    aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY") or None,
     region_name=os.environ.get("AWS_REGION") or None,
 )
 

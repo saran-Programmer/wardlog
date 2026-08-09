@@ -13,18 +13,25 @@ TOPIC_PATIENT = "ai-to-timesheet-patient"
 
 _BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BROKER")
 
-producer = KafkaProducer(
-    bootstrap_servers=_BOOTSTRAP_SERVERS,
-    value_serializer=lambda v: json.dumps(v, default=str).encode("utf-8"),
-    acks="all",
-    retries=3,
-)
+_producer: Optional[KafkaProducer] = None
+
+
+def _get_producer() -> KafkaProducer:
+    global _producer
+    if _producer is None:
+        _producer = KafkaProducer(
+            bootstrap_servers=_BOOTSTRAP_SERVERS,
+            value_serializer=lambda v: json.dumps(v, default=str).encode("utf-8"),
+            acks="all",
+            retries=3,
+        )
+    return _producer
 
 
 def _publish(topic: str, key: UUID, value: dict) -> None:
     key_bytes = str(key).encode("utf-8")
     try:
-        producer.send(topic, key=key_bytes, value=value).get()
+        _get_producer().send(topic, key=key_bytes, value=value).get()
     except Exception:
         logger.error(
             "Kafka publish failed: topic=%s key=%s — data saved in Neo4j but publish failed",
