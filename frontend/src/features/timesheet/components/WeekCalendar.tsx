@@ -1,8 +1,14 @@
 import { useState, type CSSProperties } from 'react'
 import { useUser } from '../../../hooks/useUser'
 import { dateAtMinutes } from '../../../lib/date'
-import { TimeGrid } from './TimeGrid'
+import { TimeGrid, type TimeGridActivity } from './TimeGrid'
 import { CreateActivityModal } from './CreateActivityModal'
+import { ActivityDetailDrawer } from './ActivityDetailDrawer'
+import type { ActivityResponse } from '../../../types/timesheet'
+
+function isSameDate(a: Date, b: Date) {
+  return a.getDate() === b.getDate() && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear()
+}
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -35,6 +41,8 @@ export function WeekCalendar({ weekStart, direction }: WeekCalendarProps) {
   }
 
   const [pendingRange, setPendingRange] = useState<PendingRange | null>(null)
+  const [activities, setActivities] = useState<ActivityResponse[]>([])
+  const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null)
 
   function handleSelectRange(columnIndex: number, startMinutes: number, endMinutes: number) {
     const day = days[columnIndex]
@@ -43,6 +51,24 @@ export function WeekCalendar({ weekStart, direction }: WeekCalendarProps) {
       end: dateAtMinutes(day, endMinutes),
     })
   }
+
+  const gridActivities: TimeGridActivity[] = activities.flatMap((activity) => {
+    const start = new Date(activity.startDateTime)
+    const end = new Date(activity.endDateTime)
+    const columnIndex = days.findIndex((day) => isSameDate(day, start))
+    if (columnIndex === -1) return []
+
+    return [
+      {
+        id: activity.id,
+        columnIndex,
+        startMinutes: start.getHours() * 60 + start.getMinutes(),
+        endMinutes: isSameDate(start, end) ? end.getHours() * 60 + end.getMinutes() : 24 * 60,
+        activityType: activity.activityType,
+        location: activity.location,
+      },
+    ]
+  })
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -73,17 +99,25 @@ export function WeekCalendar({ weekStart, direction }: WeekCalendarProps) {
           columnCount={7}
           isColumnToday={(columnIndex) => isToday(days[columnIndex])}
           onSelectRange={handleSelectRange}
+          activities={gridActivities}
+          onSelectActivity={setSelectedActivityId}
         />
       </div>
 
       {pendingRange && user && (
         <CreateActivityModal
-          doctorId={user.id}
           start={pendingRange.start}
           end={pendingRange.end}
           onClose={() => setPendingRange(null)}
-          onCreated={() => setPendingRange(null)}
+          onCreated={(activity) => {
+            setActivities((prev) => [...prev, activity])
+            setPendingRange(null)
+          }}
         />
+      )}
+
+      {selectedActivityId && (
+        <ActivityDetailDrawer activityId={selectedActivityId} onClose={() => setSelectedActivityId(null)} />
       )}
     </div>
   )

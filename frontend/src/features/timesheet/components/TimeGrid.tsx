@@ -1,4 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { getActivityTypeOption } from '../../../lib/activityType'
+import { formatDuration } from '../../../lib/date'
+import type { ActivityType } from '../../../types/timesheet'
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 const ROW_HEIGHT = 64
@@ -31,13 +34,30 @@ interface DragState {
   currentMinutes: number
 }
 
+export interface TimeGridActivity {
+  id: string
+  columnIndex: number
+  startMinutes: number
+  endMinutes: number
+  activityType: ActivityType
+  location: string | null
+}
+
 interface TimeGridProps {
   columnCount: number
   isColumnToday?: (columnIndex: number) => boolean
   onSelectRange?: (columnIndex: number, startMinutes: number, endMinutes: number) => void
+  activities?: TimeGridActivity[]
+  onSelectActivity?: (activityId: string) => void
 }
 
-export function TimeGrid({ columnCount, isColumnToday, onSelectRange }: TimeGridProps) {
+export function TimeGrid({
+  columnCount,
+  isColumnToday,
+  onSelectRange,
+  activities = [],
+  onSelectActivity,
+}: TimeGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const hasScrolledRef = useRef(false)
   const columnRefs = useRef<(HTMLDivElement | null)[]>([])
@@ -144,6 +164,38 @@ export function TimeGrid({ columnCount, isColumnToday, onSelectRange }: TimeGrid
                   style={{ height: ROW_HEIGHT }}
                 />
               ))}
+
+              {activities
+                .filter((activity) => activity.columnIndex === columnIndex)
+                .map((activity) => {
+                  const option = getActivityTypeOption(activity.activityType)
+                  const top = (activity.startMinutes / 60) * ROW_HEIGHT
+                  const height = Math.max(((activity.endMinutes - activity.startMinutes) / 60) * ROW_HEIGHT, 20)
+
+                  return (
+                    <div
+                      key={activity.id}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onSelectActivity?.(activity.id)
+                      }}
+                      className={`absolute inset-x-1 z-10 cursor-pointer overflow-hidden rounded-lg border-l-4 px-2.5 py-1.5 transition-[filter] hover:brightness-110 ${option.border} ${option.bg}`}
+                      style={{ top, height }}
+                    >
+                      <p className={`truncate text-sm font-semibold ${option.text}`}>{option.label}</p>
+                      {height >= 40 && (
+                        <p className="truncate text-xs text-text-muted">
+                          {formatMinutesLabel(activity.startMinutes)} – {formatMinutesLabel(activity.endMinutes)} ·{' '}
+                          {formatDuration(activity.endMinutes - activity.startMinutes)}
+                        </p>
+                      )}
+                      {height >= 64 && activity.location && (
+                        <p className="truncate text-xs text-text-subtle">{activity.location}</p>
+                      )}
+                    </div>
+                  )
+                })}
 
               {drag && drag.column === columnIndex && (
                 <div

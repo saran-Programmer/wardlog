@@ -16,14 +16,13 @@ const headingDateFormat = new Intl.DateTimeFormat('en-US', {
 const headingTimeFormat = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' })
 
 interface CreateActivityModalProps {
-  doctorId: string
   start: Date
   end: Date
   onClose: () => void
   onCreated: (activity: ActivityResponse) => void
 }
 
-export function CreateActivityModal({ doctorId, start, end, onClose, onCreated }: CreateActivityModalProps) {
+export function CreateActivityModal({ start, end, onClose, onCreated }: CreateActivityModalProps) {
   const [activityType, setActivityType] = useState<ActivityType>(ACTIVITY_TYPE_OPTIONS[0].value)
   const [dateValue, setDateValue] = useState(toDateInputValue(start))
   const [startTimeValue, setStartTimeValue] = useState(toTimeInputValue(start))
@@ -47,7 +46,6 @@ export function CreateActivityModal({ doctorId, start, end, onClose, onCreated }
 
     try {
       const activity = await createActivity({
-        doctorId,
         activityType,
         startDateTime: toLocalDateTimeString(previewStart),
         endDateTime: toLocalDateTimeString(previewEnd),

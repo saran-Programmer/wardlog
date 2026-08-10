@@ -20,6 +20,14 @@ export function combineDateAndTime(dateValue: string, timeValue: string): Date {
   return new Date(year, month - 1, day, hours, minutes)
 }
 
+export function formatDuration(minutes: number): string {
+  const hours = Math.floor(minutes / 60)
+  const mins = minutes % 60
+  if (hours === 0) return `${mins}m`
+  if (mins === 0) return `${hours}h`
+  return `${hours}h ${mins}m`
+}
+
 export function toLocalDateTimeString(date: Date): string {
   const pad = (value: number) => value.toString().padStart(2, '0')
   const datePart = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
