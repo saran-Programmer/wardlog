@@ -28,6 +28,11 @@ export function formatDuration(minutes: number): string {
   return `${hours}h ${mins}m`
 }
 
+export function formatHours(minutes: number): string {
+  const hours = Math.round((minutes / 60) * 10) / 10
+  return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`
+}
+
 export function toLocalDateTimeString(date: Date): string {
   const pad = (value: number) => value.toString().padStart(2, '0')
   const datePart = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`

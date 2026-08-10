@@ -65,3 +65,21 @@ export interface ActivityListResponse {
   activities: ActivityResponse[]
   meta: ActivityMetaResponse
 }
+
+export interface CloseMonthRequest {
+  year: number
+  month: number
+}
+
+export interface MonthClosureResponse {
+  id: string
+  doctorId: string
+  year: number
+  month: number
+  closedAt: string
+}
+
+export interface MonthStatusResponse {
+  closed: boolean
+  closedAt: string | null
+}
