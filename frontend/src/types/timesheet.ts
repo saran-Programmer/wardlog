@@ -45,3 +45,15 @@ export interface ActivityResponse {
   documents?: ActivityDocument[]
   consultations?: ActivityConsultationSummary[]
 }
+
+export interface ActivityMetaResponse {
+  clinicBlockMinutes: number
+  surgeryBlockMinutes: number
+  onCallMinutes: number
+  onSiteOnCallMinutes: number
+}
+
+export interface ActivityListResponse {
+  activities: ActivityResponse[]
+  meta: ActivityMetaResponse
+}

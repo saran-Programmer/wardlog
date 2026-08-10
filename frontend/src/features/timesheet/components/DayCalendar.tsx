@@ -1,6 +1,8 @@
-import { useState, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { useUser } from '../../../hooks/useUser'
-import { dateAtMinutes } from '../../../lib/date'
+import { getActivities } from '../../../api/activities'
+import { ApiError } from '../../../api/client'
+import { dateAtMinutes, toDateInputValue } from '../../../lib/date'
 import { TimeGrid, type TimeGridActivity } from './TimeGrid'
 import { CreateActivityModal } from './CreateActivityModal'
 import { ActivityDetailDrawer } from './ActivityDetailDrawer'
@@ -31,6 +33,26 @@ export function DayCalendar({ date, direction }: DayCalendarProps) {
   const [pendingRange, setPendingRange] = useState<PendingRange | null>(null)
   const [activities, setActivities] = useState<ActivityResponse[]>([])
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoadError(null)
+    const isoDate = toDateInputValue(date)
+
+    getActivities(isoDate, isoDate)
+      .then((response) => {
+        if (!cancelled) setActivities(response.activities)
+      })
+      .catch((err) => {
+        if (!cancelled) setLoadError(err instanceof ApiError ? err.message : 'Unable to load activities.')
+      })
+
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date.getTime()])
 
   function handleSelectRange(_columnIndex: number, startMinutes: number, endMinutes: number) {
     setPendingRange({
@@ -59,6 +81,7 @@ export function DayCalendar({ date, direction }: DayCalendarProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <p className="pb-3 text-sm text-text-subtle">Click an hour or drag across a range to log an activity.</p>
+      {loadError && <p className="pb-3 text-sm text-red-400">{loadError}</p>}
 
       <div
         key={date.toISOString()}

@@ -15,3 +15,5 @@ ai-service.zip
 *.jar.original
 frontend/.env.production
 frontend/.env.development
+
+*.class
