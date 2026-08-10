@@ -83,3 +83,16 @@ export interface MonthStatusResponse {
   closed: boolean
   closedAt: string | null
 }
+
+export interface ActivityTypeBreakdown {
+  activityType: ActivityType
+  label: string
+  activityCount: number
+  totalMinutes: number
+}
+
+export interface ActivityComparisonResponse {
+  from: string
+  to: string
+  breakdown: ActivityTypeBreakdown[]
+}
