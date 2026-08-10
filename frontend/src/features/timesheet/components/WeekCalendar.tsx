@@ -1,6 +1,8 @@
-import { useState, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { useUser } from '../../../hooks/useUser'
-import { dateAtMinutes } from '../../../lib/date'
+import { getActivities } from '../../../api/activities'
+import { ApiError } from '../../../api/client'
+import { dateAtMinutes, toDateInputValue } from '../../../lib/date'
 import { TimeGrid, type TimeGridActivity } from './TimeGrid'
 import { CreateActivityModal } from './CreateActivityModal'
 import { ActivityDetailDrawer } from './ActivityDetailDrawer'
@@ -43,6 +45,29 @@ export function WeekCalendar({ weekStart, direction }: WeekCalendarProps) {
   const [pendingRange, setPendingRange] = useState<PendingRange | null>(null)
   const [activities, setActivities] = useState<ActivityResponse[]>([])
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  const weekEnd = days[6]
+
+  useEffect(() => {
+    let cancelled = false
+    setLoadError(null)
+    const startDate = toDateInputValue(weekStart)
+    const endDate = toDateInputValue(weekEnd)
+
+    getActivities(startDate, endDate)
+      .then((response) => {
+        if (!cancelled) setActivities(response.activities)
+      })
+      .catch((err) => {
+        if (!cancelled) setLoadError(err instanceof ApiError ? err.message : 'Unable to load activities.')
+      })
+
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekStart.getTime()])
 
   function handleSelectRange(columnIndex: number, startMinutes: number, endMinutes: number) {
     const day = days[columnIndex]
@@ -73,6 +98,7 @@ export function WeekCalendar({ weekStart, direction }: WeekCalendarProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <p className="pb-3 text-sm text-text-subtle">Click an hour or drag across a range to log an activity.</p>
+      {loadError && <p className="pb-3 text-sm text-red-400">{loadError}</p>}
 
       <div className="grid grid-cols-[56px_repeat(7,1fr)]">
         <div />
@@ -117,7 +143,16 @@ export function WeekCalendar({ weekStart, direction }: WeekCalendarProps) {
       )}
 
       {selectedActivityId && (
-        <ActivityDetailDrawer activityId={selectedActivityId} onClose={() => setSelectedActivityId(null)} />
+        <ActivityDetailDrawer
+          activityId={selectedActivityId}
+          onClose={() => setSelectedActivityId(null)}
+          onActivityUpdated={(updated) =>
+            setActivities((prev) => prev.map((activity) => (activity.id === updated.id ? updated : activity)))
+          }
+          onActivityDeleted={(deletedId) =>
+            setActivities((prev) => prev.filter((activity) => activity.id !== deletedId))
+          }
+        />
       )}
     </div>
   )

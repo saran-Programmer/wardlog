@@ -1,10 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { IconRail } from '../../components/IconRail'
 import { useUser } from '../../hooks/useUser'
+import { getMonthStatus } from '../../api/monthClose'
 import { MonthCalendar } from './components/MonthCalendar'
 import { WeekCalendar } from './components/WeekCalendar'
 import { DayCalendar } from './components/DayCalendar'
+import { MonthCloseTab } from './components/MonthCloseTab'
+import { CloseMonthModal } from './components/CloseMonthModal'
+import type { MonthStatusResponse } from '../../types/timesheet'
 
 type ActivitiesTab = 'activities' | 'month-close'
 type CalendarView = 'month' | 'week' | 'day'
@@ -12,6 +16,7 @@ type CalendarView = 'month' | 'week' | 'day'
 const monthLabelFormat = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' })
 const weekPartFormat = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
 const dayLabelFormat = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+const closedDateFormat = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 
 function startOfWeek(date: Date) {
   const start = new Date(date.getFullYear(), date.getMonth(), date.getDate())
@@ -34,10 +39,34 @@ export function TimesheetPage() {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
   const [dayDate, setDayDate] = useState(() => startOfDay(new Date()))
   const [direction, setDirection] = useState<1 | -1>(1)
+  const [monthStatus, setMonthStatus] = useState<MonthStatusResponse | null>(null)
+  const [isLoadingMonthStatus, setIsLoadingMonthStatus] = useState(false)
+  const [showCloseModal, setShowCloseModal] = useState(false)
+
+  useEffect(() => {
+    if (activeTab !== 'month-close') return
+    let cancelled = false
+    setIsLoadingMonthStatus(true)
+
+    getMonthStatus(currentMonth.getFullYear(), currentMonth.getMonth() + 1)
+      .then((status) => {
+        if (!cancelled) setMonthStatus(status)
+      })
+      .catch(() => {
+        if (!cancelled) setMonthStatus(null)
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingMonthStatus(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeTab, currentMonth])
 
   function goToPrevious() {
     setDirection(-1)
-    if (view === 'month') {
+    if (activeTab === 'month-close' || view === 'month') {
       setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
     } else if (view === 'week') {
       setWeekStart((prev) => {
@@ -56,7 +85,7 @@ export function TimesheetPage() {
 
   function goToNext() {
     setDirection(1)
-    if (view === 'month') {
+    if (activeTab === 'month-close' || view === 'month') {
       setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))
     } else if (view === 'week') {
       setWeekStart((prev) => {
@@ -75,7 +104,7 @@ export function TimesheetPage() {
 
   function goToToday() {
     const now = new Date()
-    if (view === 'month') {
+    if (activeTab === 'month-close' || view === 'month') {
       const target = new Date(now.getFullYear(), now.getMonth(), 1)
       setDirection(target.getTime() >= currentMonth.getTime() ? 1 : -1)
       setCurrentMonth(target)
@@ -102,7 +131,9 @@ export function TimesheetPage() {
   weekEnd.setDate(weekStart.getDate() + 6)
   const weekLabel = `${weekPartFormat.format(weekStart)} – ${weekPartFormat.format(weekEnd)}, ${weekEnd.getFullYear()}`
   const dayLabel = dayLabelFormat.format(dayDate)
-  const periodLabel = view === 'month' ? monthLabel : view === 'week' ? weekLabel : dayLabel
+  const periodLabel =
+    activeTab === 'month-close' || view === 'month' ? monthLabel : view === 'week' ? weekLabel : dayLabel
+  const periodUnit = activeTab === 'month-close' ? 'month' : view
 
   return (
     <div className="flex h-screen bg-bg">
@@ -122,13 +153,6 @@ export function TimesheetPage() {
 
           <div className="flex items-center gap-6">
             {activeTab === 'activities' && (
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-accent-strong">45h</span>
-                <span className="text-sm text-text-muted">logged this period</span>
-              </div>
-            )}
-
-            {activeTab === 'activities' && (
               <button
                 type="button"
                 onClick={goToToday}
@@ -142,7 +166,7 @@ export function TimesheetPage() {
               <button
                 type="button"
                 onClick={goToPrevious}
-                aria-label={`Previous ${view}`}
+                aria-label={`Previous ${periodUnit}`}
                 className="text-text-muted hover:text-text"
               >
                 <ChevronLeft size={16} />
@@ -151,7 +175,7 @@ export function TimesheetPage() {
               <button
                 type="button"
                 onClick={goToNext}
-                aria-label={`Next ${view}`}
+                aria-label={`Next ${periodUnit}`}
                 className="text-text-muted hover:text-text"
               >
                 <ChevronRight size={16} />
@@ -177,7 +201,7 @@ export function TimesheetPage() {
           </div>
         </div>
 
-        <div className="mt-6 flex items-center border-b border-white/10">
+        <div className="mt-6 flex items-center justify-between border-b border-white/10">
           <div className="flex gap-6">
             <button
               type="button"
@@ -198,6 +222,24 @@ export function TimesheetPage() {
               Month Close
             </button>
           </div>
+
+          {activeTab === 'month-close' && !isLoadingMonthStatus && (
+            <div className="flex items-center gap-4 pb-3">
+              {monthStatus?.closed ? (
+                <p className="text-sm text-text-muted">
+                  Closed{monthStatus.closedAt ? ` on ${closedDateFormat.format(new Date(monthStatus.closedAt))}` : ''}
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowCloseModal(true)}
+                  className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-bg transition-opacity hover:opacity-90"
+                >
+                  Close Month
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {activeTab === 'activities' ? (
@@ -211,9 +253,21 @@ export function TimesheetPage() {
             )}
           </div>
         ) : (
-          <div className="mt-6 flex flex-1 items-center justify-center text-text-muted">Month Close coming soon</div>
+          <MonthCloseTab monthDate={currentMonth} />
         )}
       </div>
+
+      {showCloseModal && (
+        <CloseMonthModal
+          year={currentMonth.getFullYear()}
+          month={currentMonth.getMonth() + 1}
+          onClose={() => setShowCloseModal(false)}
+          onClosed={(closure) => {
+            setMonthStatus({ closed: true, closedAt: closure.closedAt })
+            setShowCloseModal(false)
+          }}
+        />
+      )}
     </div>
   )
 }

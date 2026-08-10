@@ -8,6 +8,14 @@ export interface CreateActivityRequest {
   notes?: string
 }
 
+export interface UpdateActivityRequest {
+  activityType: ActivityType
+  startDateTime: string
+  endDateTime: string
+  location?: string
+  notes?: string
+}
+
 export interface ActivityDocument {
   id: string
   fileName: string
@@ -44,4 +52,47 @@ export interface ActivityResponse {
   lastModifiedDate: string
   documents?: ActivityDocument[]
   consultations?: ActivityConsultationSummary[]
+}
+
+export interface ActivityMetaResponse {
+  clinicBlockMinutes: number
+  surgeryBlockMinutes: number
+  onCallMinutes: number
+  onSiteOnCallMinutes: number
+}
+
+export interface ActivityListResponse {
+  activities: ActivityResponse[]
+  meta: ActivityMetaResponse
+}
+
+export interface CloseMonthRequest {
+  year: number
+  month: number
+}
+
+export interface MonthClosureResponse {
+  id: string
+  doctorId: string
+  year: number
+  month: number
+  closedAt: string
+}
+
+export interface MonthStatusResponse {
+  closed: boolean
+  closedAt: string | null
+}
+
+export interface ActivityTypeBreakdown {
+  activityType: ActivityType
+  label: string
+  activityCount: number
+  totalMinutes: number
+}
+
+export interface ActivityComparisonResponse {
+  from: string
+  to: string
+  breakdown: ActivityTypeBreakdown[]
 }

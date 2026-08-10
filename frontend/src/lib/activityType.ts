@@ -7,6 +7,7 @@ interface ActivityTypeOption {
   bg: string
   text: string
   chipBg: string
+  hex: string
 }
 
 export const ACTIVITY_TYPE_OPTIONS: ActivityTypeOption[] = [
@@ -17,6 +18,7 @@ export const ACTIVITY_TYPE_OPTIONS: ActivityTypeOption[] = [
     bg: 'bg-clinic-fill',
     text: 'text-clinic',
     chipBg: 'bg-clinic',
+    hex: '#3ecebd',
   },
   {
     value: 'SURGERY_BLOCK',
@@ -25,6 +27,7 @@ export const ACTIVITY_TYPE_OPTIONS: ActivityTypeOption[] = [
     bg: 'bg-surgery-fill',
     text: 'text-surgery',
     chipBg: 'bg-surgery',
+    hex: '#f4c876',
   },
   {
     value: 'ON_CALL',
@@ -33,6 +36,7 @@ export const ACTIVITY_TYPE_OPTIONS: ActivityTypeOption[] = [
     bg: 'bg-oncall-fill',
     text: 'text-oncall',
     chipBg: 'bg-oncall',
+    hex: '#7fa8e8',
   },
   {
     value: 'ON_SITE_ON_CALL',
@@ -41,6 +45,7 @@ export const ACTIVITY_TYPE_OPTIONS: ActivityTypeOption[] = [
     bg: 'bg-onsite-oncall-fill',
     text: 'text-onsite-oncall',
     chipBg: 'bg-onsite-oncall',
+    hex: '#c9a6f0',
   },
 ]
 

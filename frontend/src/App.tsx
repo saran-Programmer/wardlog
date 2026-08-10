@@ -3,6 +3,8 @@ import { LoginPage } from './features/auth/LoginPage'
 import { RegisterPage } from './features/auth/RegisterPage'
 import { ChatPage } from './features/chat/ChatPage'
 import { TimesheetPage } from './features/timesheet/TimesheetPage'
+import { ReportsPage } from './features/reports/ReportsPage'
+import { ActivityComparisonPage } from './features/reports/ActivityComparisonPage'
 import { UserProvider } from './hooks/useUser'
 
 function App() {
@@ -24,6 +26,22 @@ function App() {
           element={
             <UserProvider>
               <TimesheetPage />
+            </UserProvider>
+          }
+        />
+        <Route
+          path="/reports"
+          element={
+            <UserProvider>
+              <ReportsPage />
+            </UserProvider>
+          }
+        />
+        <Route
+          path="/reports/activity-comparison"
+          element={
+            <UserProvider>
+              <ActivityComparisonPage />
             </UserProvider>
           }
         />

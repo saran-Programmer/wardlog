@@ -30,7 +30,7 @@ spring:
             - id: timesheet-service
               uri: lb://timesheet-service
               predicates:
-                - Path=/api/v1/activities/**,/api/v1/timesheet/**
+                - Path=/api/v1/activities/**,/api/v1/timesheet/**,/api/v1/reports/**
             - id: ai-service
               uri: lb://ai-service
               predicates:

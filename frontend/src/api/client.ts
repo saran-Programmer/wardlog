@@ -15,6 +15,7 @@ export class ApiError extends Error {
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
+  params?: Record<string, string | string[] | undefined>
 }
 
 interface ErrorBody {
@@ -23,10 +24,10 @@ interface ErrorBody {
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', body } = options
+  const { method = 'GET', body, params } = options
 
   try {
-    const response = await httpClient.request<T>({ url: path, method, data: body })
+    const response = await httpClient.request<T>({ url: path, method, data: body, params })
     return response.data
   } catch (err) {
     const axiosError = err as AxiosError<ErrorBody>
