@@ -6,9 +6,10 @@ const GAP = 12
 interface MonthCalendarProps {
   monthDate: Date
   direction: 1 | -1
+  onSelectDay: (date: Date) => void
 }
 
-export function MonthCalendar({ monthDate, direction }: MonthCalendarProps) {
+export function MonthCalendar({ monthDate, direction, onSelectDay }: MonthCalendarProps) {
   const year = monthDate.getFullYear()
   const month = monthDate.getMonth()
   const today = new Date()
@@ -60,7 +61,7 @@ export function MonthCalendar({ monthDate, direction }: MonthCalendarProps) {
         {rowHeight > 0 && (
           <div
             key={`${year}-${month}`}
-            className="animate-month-slide grid grid-cols-7"
+            className="animate-calendar-slide grid grid-cols-7"
             style={
               {
                 gridTemplateRows: `repeat(${rows}, ${rowHeight}px)`,
@@ -72,6 +73,7 @@ export function MonthCalendar({ monthDate, direction }: MonthCalendarProps) {
             {cells.map((day, index) => (
               <div
                 key={index}
+                onClick={day !== null ? () => onSelectDay(new Date(year, month, day)) : undefined}
                 className={`rounded-xl border p-2 transition-colors ${
                   day !== null
                     ? 'cursor-pointer border-white/10 bg-bg hover:bg-surface-raised'
