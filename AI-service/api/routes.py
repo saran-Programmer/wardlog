@@ -2,11 +2,12 @@ import os
 import tempfile
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel
 
 from auth.token import get_doctor_context
 from graph.config import DoctorContext
+from graph.nodes.llm import synthesize_speech
 from service.conversation_service import (
     get_messages,
     list_conversations,
@@ -21,7 +22,6 @@ router = APIRouter(prefix="/api/v1")
 class SendMessageRequest(BaseModel):
     message: str
     rush: bool = False
-    voice_output: bool = False
 
 
 class ActivityDecision(BaseModel):
@@ -33,11 +33,14 @@ class ActivityDecision(BaseModel):
 class ResumeRequest(BaseModel):
     decisions: list[ActivityDecision]
     rush: bool = False
-    voice_output: bool = False
 
 
-def _with_request_flags(doctor: DoctorContext, rush: bool, voice_output: bool) -> DoctorContext:
-    return doctor.model_copy(update={"rush": rush, "voice_output": voice_output})
+class SpeechRequest(BaseModel):
+    text: str
+
+
+def _with_request_flags(doctor: DoctorContext, rush: bool) -> DoctorContext:
+    return doctor.model_copy(update={"rush": rush})
 
 
 @router.post("/conversations")
@@ -52,7 +55,7 @@ def post_message(
     body: SendMessageRequest,
     doctor: DoctorContext = Depends(get_doctor_context),
 ):
-    full_doctor = _with_request_flags(doctor, body.rush, body.voice_output)
+    full_doctor = _with_request_flags(doctor, body.rush)
     return send_message(conversation_id, full_doctor, body.message)
 
 
@@ -62,7 +65,7 @@ def post_resume(
     body: ResumeRequest,
     doctor: DoctorContext = Depends(get_doctor_context),
 ):
-    full_doctor = _with_request_flags(doctor, body.rush, body.voice_output)
+    full_doctor = _with_request_flags(doctor, body.rush)
     resume_value = {
         "decisions": [d.model_dump(exclude_none=True) for d in body.decisions]
     }
@@ -87,10 +90,9 @@ def post_document(
     file: UploadFile = File(...),
     message: str = Form(""),
     rush: bool = Form(False),
-    voice_output: bool = Form(False),
     doctor: DoctorContext = Depends(get_doctor_context),
 ):
-    full_doctor = _with_request_flags(doctor, rush, voice_output)
+    full_doctor = _with_request_flags(doctor, rush)
 
     suffix = os.path.splitext(file.filename or "")[1]
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
@@ -98,3 +100,14 @@ def post_document(
         temp_path = tmp.name
 
     return send_message(conversation_id, full_doctor, message, temp_path)
+
+
+@router.post("/speech")
+def create_speech(
+    body: SpeechRequest, doctor: DoctorContext = Depends(get_doctor_context)
+):
+    try:
+        audio_bytes = synthesize_speech(body.text)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Speech synthesis failed") from exc
+    return Response(content=audio_bytes, media_type="audio/wav")

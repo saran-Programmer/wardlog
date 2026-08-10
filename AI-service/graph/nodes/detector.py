@@ -60,7 +60,6 @@ def detector_node(state: AssistantState):
         "activity_not_found": None,
         "activity_generated_content": None,
         "activity_details_data": None,
-        "audio_base64": None,
     }
 
 

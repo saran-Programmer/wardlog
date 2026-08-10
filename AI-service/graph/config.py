@@ -15,5 +15,3 @@ class DoctorContext(BaseModel):
     # this makes the response short and on point representing the user is in a hurry
     rush: bool
     assistant_name: str = "wardlog"
-    # when true, the assistant's reply is also produced as speech
-    voice_output: bool = False
