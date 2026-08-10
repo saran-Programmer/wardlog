@@ -18,6 +18,12 @@
   --color-oncall: #7fa8e8;
   --color-onsite-oncall: #c9a6f0;
 
+  /* Activity type colours, blended solid onto bg for calendar block fills */
+  --color-clinic-fill: color-mix(in srgb, var(--color-clinic) 22%, var(--color-bg));
+  --color-surgery-fill: color-mix(in srgb, var(--color-surgery) 22%, var(--color-bg));
+  --color-oncall-fill: color-mix(in srgb, var(--color-oncall) 22%, var(--color-bg));
+  --color-onsite-oncall-fill: color-mix(in srgb, var(--color-onsite-oncall) 22%, var(--color-bg));
+
   /* Text */
   --color-text: #f5f7f7;
   --color-text-muted: #9aa4a8;
