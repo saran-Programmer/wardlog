@@ -24,9 +24,14 @@ class SendMessageRequest(BaseModel):
     voice_output: bool = False
 
 
+class ActivityDecision(BaseModel):
+    index: int
+    decision: str  # "accept" | "reject" | "edit"
+    fields: dict | None = None
+
+
 class ResumeRequest(BaseModel):
-    choice: str
-    text: str | None = None
+    decisions: list[ActivityDecision]
     rush: bool = False
     voice_output: bool = False
 
@@ -58,9 +63,9 @@ def post_resume(
     doctor: DoctorContext = Depends(get_doctor_context),
 ):
     full_doctor = _with_request_flags(doctor, body.rush, body.voice_output)
-    resume_value = {"choice": body.choice}
-    if body.text is not None:
-        resume_value["text"] = body.text
+    resume_value = {
+        "decisions": [d.model_dump(exclude_none=True) for d in body.decisions]
+    }
     return resume(conversation_id, full_doctor, resume_value)
 
 
