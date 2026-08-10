@@ -6,3 +6,12 @@ graphify-out/
 .vscode/settings.json
 
 *.txt
+ai-service.zip
+.gitignore
+*jar
+
+*.lst
+*.pem
+*.jar.original
+frontend/.env.production
+frontend/.env.development

@@ -48,7 +48,6 @@ export function LoginPage() {
         <Input
           label="Password"
           type={showPassword ? 'text' : 'password'}
-          placeholder="••••••••"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="current-password"

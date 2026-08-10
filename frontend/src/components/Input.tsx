@@ -4,6 +4,7 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string
   labelAction?: ReactNode
   endAdornment?: ReactNode
+  overlay?: ReactNode
   error?: string
 }
 
@@ -11,6 +12,7 @@ export function Input({
   label,
   labelAction,
   endAdornment,
+  overlay,
   error,
   id,
   className = '',
@@ -28,6 +30,7 @@ export function Input({
         {labelAction}
       </div>
       <div className="relative">
+        {overlay}
         <input
           id={inputId}
           className={`w-full rounded-lg border border-white/5 bg-input px-4 py-2.5 text-text placeholder:text-text-subtle focus:border-accent focus:outline-none ${endAdornment ? 'pr-10' : ''} ${className}`}
