@@ -3,6 +3,8 @@ import { clearAccessToken, getAccessToken, setAccessToken } from '../lib/tokenSt
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL
 const REFRESH_PATH = '/api/v1/auth/refresh'
+const LOGIN_PATH = '/api/v1/auth/login'
+const REGISTER_PATH = '/api/v1/auth/register'
 
 export const httpClient = axios.create({
   baseURL: BASE_URL,
@@ -46,6 +48,11 @@ httpClient.interceptors.response.use(
     const originalRequest = error.config as RetriableConfig | undefined
 
     if (error.response?.status !== 401 || !originalRequest) {
+      return Promise.reject(error)
+    }
+
+    // A failed login/register attempt is a credentials error, not an expired session — let it surface normally.
+    if (originalRequest.url?.includes(LOGIN_PATH) || originalRequest.url?.includes(REGISTER_PATH)) {
       return Promise.reject(error)
     }
 

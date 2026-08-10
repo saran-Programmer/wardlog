@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AuthLayout } from './AuthLayout'
 import { Input } from '../../components/Input'
@@ -7,6 +7,41 @@ import { PasswordVisibilityToggle } from '../../components/PasswordVisibilityTog
 import { register } from '../../api/auth'
 import { setAccessToken } from '../../lib/tokenStore'
 import { ApiError } from '../../api/client'
+
+const SPECIALTY_EXAMPLES = [
+  'Orthopedic Surgery',
+  'Cardiology',
+  'Pediatrics',
+  'General Surgery',
+  'Neurology',
+  'Emergency Medicine',
+  'Anesthesiology',
+  'Radiology',
+  'Internal Medicine',
+  'Obstetrics & Gynecology',
+]
+
+function AnimatedSpecialtyPlaceholder({ visible }: { visible: boolean }) {
+  const [index, setIndex] = useState(0)
+
+  useEffect(() => {
+    if (!visible) return
+    const interval = setInterval(() => {
+      setIndex((i) => (i + 1) % SPECIALTY_EXAMPLES.length)
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [visible])
+
+  if (!visible) return null
+
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      <span key={index} className="animate-placeholder-cycle block truncate px-4 py-2.5 text-text-subtle">
+        {SPECIALTY_EXAMPLES[index]}
+      </span>
+    </div>
+  )
+}
 
 export function RegisterPage() {
   const navigate = useNavigate()
@@ -37,6 +72,7 @@ export function RegisterPage() {
         email,
         password,
         speciality: speciality || undefined,
+        // TODO : temp fix. need to handle this in the user micro service with default value.
         tone: 'PROFESSIONAL',
       })
       setAccessToken(response.accessToken)
@@ -52,7 +88,7 @@ export function RegisterPage() {
     <AuthLayout title="Create your account" subtitle="Start logging your clinical day in seconds.">
       <form className="space-y-5" onSubmit={handleSubmit}>
         <Input
-          label="Full name"
+          label="Name"
           placeholder="Dr. Jordan Reyes"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -72,16 +108,15 @@ export function RegisterPage() {
 
         <Input
           label="Specialty (optional)"
-          placeholder="e.g. Orthopedic Surgery"
           value={speciality}
           onChange={(e) => setSpeciality(e.target.value)}
+          overlay={<AnimatedSpecialtyPlaceholder visible={speciality.length === 0} />}
         />
 
         <div className="grid grid-cols-2 gap-4">
           <Input
             label="Password"
             type={showPassword ? 'text' : 'password'}
-            placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="new-password"
@@ -94,7 +129,6 @@ export function RegisterPage() {
           <Input
             label="Confirm"
             type={showConfirmPassword ? 'text' : 'password'}
-            placeholder="••••••••"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             autoComplete="new-password"
