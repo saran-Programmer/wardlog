@@ -8,6 +8,14 @@ export interface CreateActivityRequest {
   notes?: string
 }
 
+export interface UpdateActivityRequest {
+  activityType: ActivityType
+  startDateTime: string
+  endDateTime: string
+  location?: string
+  notes?: string
+}
+
 export interface ActivityDocument {
   id: string
   fileName: string

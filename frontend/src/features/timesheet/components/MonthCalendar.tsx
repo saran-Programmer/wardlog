@@ -9,7 +9,7 @@ import type { ActivityResponse } from '../../../types/timesheet'
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const GAP = 12
 const MAX_ROWS = 6
-const MAX_VISIBLE_CHIPS = 2
+const MAX_VISIBLE_CHIPS = 1
 const chipTimeFormat = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' })
 
 interface MonthCalendarProps {
@@ -125,7 +125,7 @@ export function MonthCalendar({ monthDate, direction, onSelectDay }: MonthCalend
                 <div
                   key={index}
                   onClick={day !== null ? () => onSelectDay(new Date(year, month, day)) : undefined}
-                  className={`overflow-hidden rounded-xl border p-2 transition-colors ${
+                  className={`min-h-0 min-w-0 overflow-hidden rounded-xl border p-2 transition-colors ${
                     day !== null
                       ? 'cursor-pointer border-white/10 bg-bg hover:bg-surface-raised'
                       : 'border-white/5 bg-bg/60 opacity-40'

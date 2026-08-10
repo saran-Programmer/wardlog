@@ -122,13 +122,6 @@ export function TimesheetPage() {
 
           <div className="flex items-center gap-6">
             {activeTab === 'activities' && (
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-accent-strong">45h</span>
-                <span className="text-sm text-text-muted">logged this period</span>
-              </div>
-            )}
-
-            {activeTab === 'activities' && (
               <button
                 type="button"
                 onClick={goToToday}

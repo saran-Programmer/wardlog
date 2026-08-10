@@ -110,7 +110,16 @@ export function DayCalendar({ date, direction }: DayCalendarProps) {
       )}
 
       {selectedActivityId && (
-        <ActivityDetailDrawer activityId={selectedActivityId} onClose={() => setSelectedActivityId(null)} />
+        <ActivityDetailDrawer
+          activityId={selectedActivityId}
+          onClose={() => setSelectedActivityId(null)}
+          onActivityUpdated={(updated) =>
+            setActivities((prev) => prev.map((activity) => (activity.id === updated.id ? updated : activity)))
+          }
+          onActivityDeleted={(deletedId) =>
+            setActivities((prev) => prev.filter((activity) => activity.id !== deletedId))
+          }
+        />
       )}
     </div>
   )

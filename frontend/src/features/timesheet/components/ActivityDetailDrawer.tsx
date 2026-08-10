@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { MapPin, Paperclip, X } from 'lucide-react'
-import { getActivityById } from '../../../api/activities'
+import { deleteActivity, getActivityById } from '../../../api/activities'
 import { ApiError } from '../../../api/client'
 import { getActivityTypeOption } from '../../../lib/activityType'
 import { formatDuration } from '../../../lib/date'
 import { formatFileSize } from '../../../lib/format'
+import { EditActivityModal } from './EditActivityModal'
 import type { ActivityResponse } from '../../../types/timesheet'
 
 const dateFormat = new Intl.DateTimeFormat('en-US', {
@@ -18,12 +19,23 @@ const timeFormat = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '
 interface ActivityDetailDrawerProps {
   activityId: string
   onClose: () => void
+  onActivityUpdated?: (activity: ActivityResponse) => void
+  onActivityDeleted?: (activityId: string) => void
 }
 
-export function ActivityDetailDrawer({ activityId, onClose }: ActivityDetailDrawerProps) {
+export function ActivityDetailDrawer({
+  activityId,
+  onClose,
+  onActivityUpdated,
+  onActivityDeleted,
+}: ActivityDetailDrawerProps) {
   const [activity, setActivity] = useState<ActivityResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isEditing, setIsEditing] = useState(false)
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -50,6 +62,21 @@ export function ActivityDetailDrawer({ activityId, onClose }: ActivityDetailDraw
   const option = activity ? getActivityTypeOption(activity.activityType) : null
   const start = activity ? new Date(activity.startDateTime) : null
   const end = activity ? new Date(activity.endDateTime) : null
+
+  async function handleConfirmDelete() {
+    if (!activity) return
+    setDeleteError(null)
+    setIsDeleting(true)
+
+    try {
+      await deleteActivity(activity.id)
+      onActivityDeleted?.(activity.id)
+      onClose()
+    } catch (err) {
+      setDeleteError(err instanceof ApiError ? err.message : 'Unable to delete this activity. Please try again.')
+      setIsDeleting(false)
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-30 flex justify-end bg-black/60" onClick={onClose}>
@@ -141,23 +168,61 @@ export function ActivityDetailDrawer({ activityId, onClose }: ActivityDetailDraw
               </div>
             )}
 
-            <div className="flex gap-3 pt-2">
-              <button
-                type="button"
-                className="rounded-lg bg-accent px-5 py-2 text-sm font-semibold text-bg hover:opacity-90"
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                className="rounded-lg border border-red-500/30 px-5 py-2 text-sm font-semibold text-red-400 hover:bg-red-500/10"
-              >
-                Delete
-              </button>
-            </div>
+            {deleteError && <p className="text-sm text-red-400">{deleteError}</p>}
+
+            {isConfirmingDelete ? (
+              <div className="flex items-center gap-3 pt-2">
+                <p className="flex-1 text-sm text-text-muted">Delete this activity? This can't be undone.</p>
+                <button
+                  type="button"
+                  onClick={() => setIsConfirmingDelete(false)}
+                  disabled={isDeleting}
+                  className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-text hover:bg-white/5 disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  disabled={isDeleting}
+                  className="rounded-lg bg-red-500/90 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-60"
+                >
+                  {isDeleting ? 'Deleting…' : 'Confirm Delete'}
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="rounded-lg bg-accent px-5 py-2 text-sm font-semibold text-bg hover:opacity-90"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsConfirmingDelete(true)}
+                  className="rounded-lg border border-red-500/30 px-5 py-2 text-sm font-semibold text-red-400 hover:bg-red-500/10"
+                >
+                  Delete
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {isEditing && activity && (
+        <EditActivityModal
+          activity={activity}
+          onClose={() => setIsEditing(false)}
+          onUpdated={(updated) => {
+            setActivity(updated)
+            onActivityUpdated?.(updated)
+            setIsEditing(false)
+          }}
+        />
+      )}
     </div>
   )
 }
