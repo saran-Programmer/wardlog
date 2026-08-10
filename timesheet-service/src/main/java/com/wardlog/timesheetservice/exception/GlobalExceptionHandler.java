@@ -14,6 +14,13 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(MissingDoctorHeaderException.class)
+    public ResponseEntity<Map<String, Object>> handleMissingDoctorHeader(MissingDoctorHeaderException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
+    }
+
     @ExceptionHandler(InvalidActivityPayloadException.class)
     public ResponseEntity<Map<String, Object>> handleInvalidActivityPayload(InvalidActivityPayloadException ex) {
         Map<String, Object> body = new LinkedHashMap<>();

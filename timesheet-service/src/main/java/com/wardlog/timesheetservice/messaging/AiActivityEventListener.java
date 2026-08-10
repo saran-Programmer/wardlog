@@ -1,6 +1,7 @@
 package com.wardlog.timesheetservice.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wardlog.timesheetservice.dto.AiActivityEvent;
 import com.wardlog.timesheetservice.dto.CreateActivityRequest;
 import com.wardlog.timesheetservice.dto.PatientEvent;
 import com.wardlog.timesheetservice.entity.Patient;
@@ -28,10 +29,11 @@ public class AiActivityEventListener {
             containerFactory = "kafkaListenerContainerFactory")
     public void onActivityEvent(String message) {
         try {
-            CreateActivityRequest request = kafkaConsumerObjectMapper.readValue(message, CreateActivityRequest.class);
-            log.info("Consumed ai-to-timesheet-activity message for activityId={}", request.getId());
+            AiActivityEvent event = kafkaConsumerObjectMapper.readValue(message, AiActivityEvent.class);
+            log.info("Consumed ai-to-timesheet-activity message for activityId={}", event.getId());
 
-            activityService.createActivity(request, null);
+            CreateActivityRequest request = event.toCreateActivityRequest();
+            activityService.createActivity(request, event.getDoctorId(), null);
             log.info("Persisted activity {} from AI Service event", request.getId());
         } catch (Exception ex) {
             log.error("Failed to process ai-to-timesheet-activity message: {}", message, ex);

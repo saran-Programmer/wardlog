@@ -5,6 +5,7 @@ import com.wardlog.timesheetservice.dto.ActivityResponse;
 import com.wardlog.timesheetservice.dto.CreateActivityRequest;
 import com.wardlog.timesheetservice.dto.UpdateActivityRequest;
 import com.wardlog.timesheetservice.enums.ActivityType;
+import com.wardlog.timesheetservice.exception.MissingDoctorHeaderException;
 import com.wardlog.timesheetservice.service.ActivityService;
 import com.wardlog.timesheetservice.validation.ActivityValidator;
 import jakarta.validation.Valid;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -39,11 +41,13 @@ public class ActivityController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ActivityResponse> createActivity(
+            @RequestHeader(value = "X-Doctor-Id", required = false) UUID doctorId,
             @Valid @RequestPart("activity") CreateActivityRequest request,
             @RequestPart(value = "files", required = false) List<MultipartFile> files) {
 
+        UUID resolvedDoctorId = requireDoctorId(doctorId);
         activityValidator.validateCreate(request);
-        ActivityResponse response = activityService.createActivity(request, files);
+        ActivityResponse response = activityService.createActivity(request, resolvedDoctorId, files);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -77,12 +81,17 @@ public class ActivityController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) List<ActivityType> activityTypes,
+            @RequestHeader(value = "X-Doctor-Id", required = false) UUID doctorId) {
 
-            // WORKAROUND: doctorId is accepted as a query param for now. In the real
-            // implementation this must be derived from the auth token, not trusted from the request.
-            @RequestParam(required = false) UUID doctorId) {
-                
-        ActivityListResponse response = activityService.getActivities(startDate, endDate, activityTypes, doctorId);
+        UUID resolvedDoctorId = requireDoctorId(doctorId);
+        ActivityListResponse response = activityService.getActivities(startDate, endDate, activityTypes, resolvedDoctorId);
         return ResponseEntity.ok(response);
+    }
+
+    private UUID requireDoctorId(UUID doctorId) {
+        if (doctorId == null) {
+            throw new MissingDoctorHeaderException("Missing X-Doctor-Id header");
+        }
+        return doctorId;
     }
 }
