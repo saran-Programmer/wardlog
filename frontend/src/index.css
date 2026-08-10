@@ -60,3 +60,18 @@ button:not(:disabled),
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
+
+@keyframes month-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--slide-from, 16px));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-month-slide {
+  animation: month-slide-in 200ms ease-out;
+}

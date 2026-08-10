@@ -14,3 +14,9 @@ export function register(request: RegisterRequest): Promise<AuthResponse> {
     body: request,
   })
 }
+
+export function refreshToken(): Promise<{ accessToken: string }> {
+  return apiRequest<{ accessToken: string }>('/api/v1/auth/refresh', {
+    method: 'POST',
+  })
+}

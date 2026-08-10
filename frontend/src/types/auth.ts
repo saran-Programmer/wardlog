@@ -27,6 +27,15 @@ export interface UserResponse {
   assistantName?: string
 }
 
+export interface UpdateProfileRequest {
+  name?: string
+  age?: number
+  sex?: string
+  speciality?: string
+  tone?: ToneType
+  assistantName?: string
+}
+
 export interface AuthResponse {
   accessToken: string
   user: UserResponse
