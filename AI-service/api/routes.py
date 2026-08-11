@@ -162,7 +162,7 @@ def post_voice_message(
     return send_message(conversation_id, full_doctor, text)
 
 
-@router.post("/speech")
+@router.post("/conversations/speech")
 def create_speech(
     body: SpeechRequest, doctor: DoctorContext = Depends(get_doctor_context)
 ):
