@@ -12,7 +12,7 @@ interface ActivityTypeOption {
 
 export const ACTIVITY_TYPE_OPTIONS: ActivityTypeOption[] = [
   {
-    value: 'CLINIC_BLOCK',
+    value: 'clinicblock',
     label: 'Clinic Block',
     border: 'border-clinic',
     bg: 'bg-clinic-fill',
@@ -21,7 +21,7 @@ export const ACTIVITY_TYPE_OPTIONS: ActivityTypeOption[] = [
     hex: '#3ecebd',
   },
   {
-    value: 'SURGERY_BLOCK',
+    value: 'surgeryblock',
     label: 'Surgery Block',
     border: 'border-surgery',
     bg: 'bg-surgery-fill',
@@ -30,7 +30,7 @@ export const ACTIVITY_TYPE_OPTIONS: ActivityTypeOption[] = [
     hex: '#f4c876',
   },
   {
-    value: 'ON_CALL',
+    value: 'oncall',
     label: 'On-Call',
     border: 'border-oncall',
     bg: 'bg-oncall-fill',
@@ -39,7 +39,7 @@ export const ACTIVITY_TYPE_OPTIONS: ActivityTypeOption[] = [
     hex: '#7fa8e8',
   },
   {
-    value: 'ON_SITE_ON_CALL',
+    value: 'onsiteoncall',
     label: 'Onsite On-Call',
     border: 'border-onsite-oncall',
     bg: 'bg-onsite-oncall-fill',

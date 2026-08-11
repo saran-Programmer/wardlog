@@ -1,4 +1,4 @@
-export type ActivityType = 'CLINIC_BLOCK' | 'SURGERY_BLOCK' | 'ON_CALL' | 'ON_SITE_ON_CALL'
+export type ActivityType = 'clinicblock' | 'surgeryblock' | 'oncall' | 'onsiteoncall'
 
 export interface CreateActivityRequest {
   activityType: ActivityType

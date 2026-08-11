@@ -33,7 +33,7 @@ public class AiActivityEventListener {
             log.info("Consumed ai-to-timesheet-activity message for activityId={}", event.getId());
 
             CreateActivityRequest request = event.toCreateActivityRequest();
-            activityService.createActivity(request, event.getDoctorId(), null);
+            activityService.createActivity(request, event.getDoctorId(), null, true);
             log.info("Persisted activity {} from AI Service event", request.getId());
         } catch (Exception ex) {
             log.error("Failed to process ai-to-timesheet-activity message: {}", message, ex);
