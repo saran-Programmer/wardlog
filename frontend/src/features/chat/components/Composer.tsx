@@ -1,22 +1,35 @@
-import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
-import { ArrowUp, Mic, Paperclip, Plus, X, Zap } from 'lucide-react'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { ArrowUp, Mic, Paperclip, Plus, Square, X, Zap } from 'lucide-react'
 
 interface ComposerProps {
-  onSend: (message: string, rush: boolean) => void
+  onSend: (message: string, rush: boolean, viaVoice?: boolean) => void
+  onSendVoice: (audio: Blob, rush: boolean) => void
+  onMicUnlock?: () => void
   isSending: boolean
 }
 
-export function Composer({ onSend, isSending }: ComposerProps) {
+export function Composer({ onSend, onSendVoice, onMicUnlock, isSending }: ComposerProps) {
   const [message, setMessage] = useState('')
   const [rush, setRush] = useState(false)
   const [attachments, setAttachments] = useState<File[]>([])
+  const [isRecording, setIsRecording] = useState(false)
+  const [micError, setMicError] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const streamRef = useRef<MediaStream | null>(null)
+
+  useEffect(() => {
+    return () => {
+      streamRef.current?.getTracks().forEach((track) => track.stop())
+    }
+  }, [])
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
     const trimmed = message.trim()
     if (!trimmed || isSending) return
-    onSend(trimmed, rush)
+    onSend(trimmed, rush, false)
     setMessage('')
   }
 
@@ -30,6 +43,61 @@ export function Composer({ onSend, isSending }: ComposerProps) {
 
   function removeAttachment(index: number) {
     setAttachments((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  function stopStream() {
+    streamRef.current?.getTracks().forEach((track) => track.stop())
+    streamRef.current = null
+  }
+
+  async function handleMicClick() {
+    if (isSending) return
+
+    // Must run synchronously within this click's gesture, before any await —
+    // it's what lets the auto-played reply audio bypass the autoplay block later.
+    onMicUnlock?.()
+
+    if (isRecording) {
+      mediaRecorderRef.current?.stop()
+      return
+    }
+
+    setMicError(false)
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
+
+      const recorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = recorder
+      chunksRef.current = []
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunksRef.current.push(event.data)
+        }
+      }
+
+      recorder.onstop = () => {
+        stopStream()
+        setIsRecording(false)
+
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' })
+        chunksRef.current = []
+
+        if (blob.size > 0) {
+          onSendVoice(blob, rush)
+        }
+      }
+
+      recorder.start()
+      setIsRecording(true)
+    } catch (err) {
+      console.error('Microphone access failed', err)
+      stopStream()
+      setMicError(true)
+      setTimeout(() => setMicError(false), 2500)
+    }
   }
 
   return (
@@ -99,16 +167,20 @@ export function Composer({ onSend, isSending }: ComposerProps) {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              aria-label="Voice input"
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-text-muted hover:text-text"
+              aria-label={isRecording ? 'Stop recording' : micError ? 'Microphone unavailable' : 'Voice input'}
+              onClick={handleMicClick}
+              disabled={isSending}
+              className={`flex h-9 w-9 items-center justify-center rounded-full border text-text-muted transition-colors hover:text-text disabled:opacity-60 ${
+                isRecording ? 'animate-pulse border-red-400 text-red-400' : ''
+              } ${micError ? 'border-red-400 text-red-400' : 'border-white/10'}`}
             >
-              <Mic size={16} />
+              {isRecording ? <Square size={14} /> : <Mic size={16} />}
             </button>
 
             <button
               type="submit"
               aria-label="Send"
-              disabled={isSending || message.trim().length === 0}
+              disabled={isSending || isRecording || message.trim().length === 0}
               className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-bg hover:opacity-90 disabled:opacity-60"
             >
               <ArrowUp size={16} />

@@ -21,6 +21,11 @@ export interface CreateConversationResponse {
   conversation_id: string
 }
 
+export interface RenameConversationResponse {
+  conversation_id: string
+  title: string
+}
+
 export interface SendMessageRequest {
   message: string
   rush: boolean
@@ -33,9 +38,38 @@ export interface SendMessageReply {
   audio_base64: string | null
 }
 
+export interface ProposedActivity {
+  index: number
+  type: string
+  start: string | null
+  end: string | null
+  location: string | null
+  notes: string | null
+}
+
 export interface SendMessageInterrupt {
   status: 'interrupt'
-  payload: unknown
+  payload: ProposedActivity[]
 }
 
 export type SendMessageResponse = SendMessageReply | SendMessageInterrupt
+
+export type ActivityDecisionKind = 'accept' | 'reject' | 'edit'
+
+export interface ActivityDecisionFields {
+  type?: string
+  start?: string
+  end?: string
+  location?: string
+  notes?: string
+}
+
+export interface ActivityDecision {
+  index: number
+  decision: ActivityDecisionKind
+  fields?: ActivityDecisionFields
+}
+
+export interface ResumeRequest {
+  decisions: ActivityDecision[]
+}
