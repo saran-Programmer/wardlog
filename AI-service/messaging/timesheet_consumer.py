@@ -17,23 +17,18 @@ _neo4j_driver = GraphDatabase.driver(
     auth=(os.environ["NEO4J_USERNAME"], os.environ["NEO4J_PASSWORD"]),
 )
 
-# Maps the timesheet-service ActivityType enum values to the AI-service
-# Activity.name literals ("surgeryblock" | "clinicblock" | "oncall" | "onsiteoncall").
-_ACTIVITY_TYPE_MAP = {
-    "CLINIC_BLOCK": "clinicblock",
-    "ON_CALL": "oncall",
-    "ON_SITE_ON_CALL": "onsiteoncall",
-    "SURGERY_BLOCK": "surgeryblock",
-}
+# The timesheet-service ActivityType enum values are the same literals as the
+# AI-service's Activity.name ("surgeryblock" | "clinicblock" | "oncall" | "onsiteoncall"),
+# so no translation is needed — just validate.
+_KNOWN_ACTIVITY_TYPES = {"surgeryblock", "clinicblock", "oncall", "onsiteoncall"}
 
 
 def _to_ai_activity_type(value: Optional[str]) -> Optional[str]:
     if value is None:
         return None
-    mapped = _ACTIVITY_TYPE_MAP.get(value)
-    if mapped is None:
+    if value not in _KNOWN_ACTIVITY_TYPES:
         raise ValueError(f"Unknown activityType from timesheet: {value!r}")
-    return mapped
+    return value
 
 
 _CREATE_ACTIVITY_QUERY = """

@@ -47,7 +47,7 @@ public class ActivityController {
 
         UUID resolvedDoctorId = requireDoctorId(doctorId);
         activityValidator.validateCreate(request);
-        ActivityResponse response = activityService.createActivity(request, resolvedDoctorId, files);
+        ActivityResponse response = activityService.createActivity(request, resolvedDoctorId, files, false);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

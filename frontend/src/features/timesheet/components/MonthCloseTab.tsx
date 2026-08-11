@@ -17,13 +17,13 @@ const EMPTY_META: ActivityMetaResponse = {
 
 function minutesForType(type: ActivityType, meta: ActivityMetaResponse): number {
   switch (type) {
-    case 'CLINIC_BLOCK':
+    case 'clinicblock':
       return meta.clinicBlockMinutes
-    case 'SURGERY_BLOCK':
+    case 'surgeryblock':
       return meta.surgeryBlockMinutes
-    case 'ON_CALL':
+    case 'oncall':
       return meta.onCallMinutes
-    case 'ON_SITE_ON_CALL':
+    case 'onsiteoncall':
       return meta.onSiteOnCallMinutes
   }
 }

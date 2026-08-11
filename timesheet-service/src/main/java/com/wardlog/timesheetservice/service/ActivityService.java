@@ -40,7 +40,7 @@ public class ActivityService {
     private final S3StorageService s3StorageService;
     private final ActivityEventPublisher activityEventPublisher;
 
-    public ActivityResponse createActivity(CreateActivityRequest request, UUID doctorId, List<MultipartFile> files) {
+    public ActivityResponse createActivity(CreateActivityRequest request, UUID doctorId, List<MultipartFile> files, boolean isPublisedEvent) {
         Activity activity = toEntity(request, doctorId);
 
         // Closed-month enforcement point: an activity belongs to the month of its
@@ -207,10 +207,10 @@ public class ActivityService {
         boolean noFilter = activityTypes == null || activityTypes.isEmpty();
 
         return new ActivityMetaResponse(
-                minutesFor(ActivityType.CLINIC_BLOCK, noFilter, activityTypes, summedMinutes),
-                minutesFor(ActivityType.SURGERY_BLOCK, noFilter, activityTypes, summedMinutes),
-                minutesFor(ActivityType.ON_CALL, noFilter, activityTypes, summedMinutes),
-                minutesFor(ActivityType.ON_SITE_ON_CALL, noFilter, activityTypes, summedMinutes)
+                minutesFor(ActivityType.clinicblock, noFilter, activityTypes, summedMinutes),
+                minutesFor(ActivityType.surgeryblock, noFilter, activityTypes, summedMinutes),
+                minutesFor(ActivityType.oncall, noFilter, activityTypes, summedMinutes),
+                minutesFor(ActivityType.onsiteoncall, noFilter, activityTypes, summedMinutes)
         );
     }
 

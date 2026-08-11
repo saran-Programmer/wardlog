@@ -29,15 +29,15 @@ public class SampleActivities {
     // Day 3 and day 16 each appear twice within a month, so day-level grouping has
     // multiple activities to group. All four activity types are represented.
     private static final List<Template> MONTH_TEMPLATE = List.of(
-            new Template(3, 8, 0, 240, ActivityType.CLINIC_BLOCK, "Main Clinic", null),
-            new Template(3, 19, 0, 660, ActivityType.ON_CALL, null, "Quiet shift"),
-            new Template(6, 9, 0, 270, ActivityType.SURGERY_BLOCK, "OT 2", "Scheduled procedure"),
-            new Template(9, 20, 0, 720, ActivityType.ON_SITE_ON_CALL, "Ward 4", null),
-            new Template(12, 8, 0, 180, ActivityType.CLINIC_BLOCK, null, null),
-            new Template(16, 17, 0, 240, ActivityType.ON_CALL, null, "Covered ER overflow"),
-            new Template(16, 8, 0, 240, ActivityType.CLINIC_BLOCK, "Main Clinic", null),
-            new Template(21, 7, 30, 150, ActivityType.SURGERY_BLOCK, "OT 1", null),
-            new Template(25, 8, 0, 300, ActivityType.CLINIC_BLOCK, "Main Clinic", "Follow-up heavy day")
+            new Template(3, 8, 0, 240, ActivityType.clinicblock, "Main Clinic", null),
+            new Template(3, 19, 0, 660, ActivityType.oncall, null, "Quiet shift"),
+            new Template(6, 9, 0, 270, ActivityType.surgeryblock, "OT 2", "Scheduled procedure"),
+            new Template(9, 20, 0, 720, ActivityType.onsiteoncall, "Ward 4", null),
+            new Template(12, 8, 0, 180, ActivityType.clinicblock, null, null),
+            new Template(16, 17, 0, 240, ActivityType.oncall, null, "Covered ER overflow"),
+            new Template(16, 8, 0, 240, ActivityType.clinicblock, "Main Clinic", null),
+            new Template(21, 7, 30, 150, ActivityType.surgeryblock, "OT 1", null),
+            new Template(25, 8, 0, 300, ActivityType.clinicblock, "Main Clinic", "Follow-up heavy day")
     );
 
     public static List<Activity> get() {

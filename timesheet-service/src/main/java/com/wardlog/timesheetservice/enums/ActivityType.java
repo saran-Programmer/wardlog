@@ -2,10 +2,10 @@ package com.wardlog.timesheetservice.enums;
 
 public enum ActivityType {
 
-    CLINIC_BLOCK("clinic block"),
-    ON_CALL("on call"),
-    ON_SITE_ON_CALL("on site on call"),
-    SURGERY_BLOCK("surgery block");
+    clinicblock("clinic block"),
+    oncall("on call"),
+    onsiteoncall("on site on call"),
+    surgeryblock("surgery block");
 
     private final String label;
 
