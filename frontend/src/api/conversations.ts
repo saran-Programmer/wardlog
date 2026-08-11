@@ -30,3 +30,18 @@ export function sendMessage(
     body: request,
   })
 }
+
+export function sendVoiceMessage(
+  conversationId: string,
+  audio: Blob,
+  rush: boolean,
+): Promise<SendMessageResponse> {
+  const formData = new FormData()
+  formData.append('audio', audio, 'voice-message.webm')
+  formData.append('rush', String(rush))
+
+  return apiRequest<SendMessageResponse>(`/api/v1/conversations/${conversationId}/voice-message`, {
+    method: 'POST',
+    body: formData,
+  })
+}

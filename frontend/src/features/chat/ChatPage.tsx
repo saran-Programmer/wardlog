@@ -3,7 +3,14 @@ import { IconRail } from '../../components/IconRail'
 import { ConversationSidebar } from './components/ConversationSidebar'
 import { Composer } from './components/Composer'
 import { MessageList } from './components/MessageList'
-import { createConversation, getMessages, listConversations, sendMessage } from '../../api/conversations'
+import { useSpeechPlayback } from './hooks/useSpeechPlayback'
+import {
+  createConversation,
+  getMessages,
+  listConversations,
+  sendMessage,
+  sendVoiceMessage,
+} from '../../api/conversations'
 import type { Conversation, Message } from '../../types/chat'
 
 export function ChatPage() {
@@ -17,6 +24,8 @@ export function ChatPage() {
   const [isCreatingConversation, setIsCreatingConversation] = useState(false)
   const [isAwaitingReply, setIsAwaitingReply] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
+
+  const speech = useSpeechPlayback()
 
   useEffect(() => {
     listConversations()
@@ -59,7 +68,7 @@ export function ChatPage() {
     }
   }
 
-  async function handleSend(text: string, rush: boolean) {
+  async function handleSend(text: string, rush: boolean, viaVoice = false) {
     setSendError(null)
 
     let conversationId = activeConversationId
@@ -95,10 +104,11 @@ export function ChatPage() {
       const response = await sendMessage(conversationId, { message: text, rush, voice_output: false })
 
       if (response.status === 'reply') {
+        const aiMessageId = crypto.randomUUID()
         setMessages((prev) => [
           ...prev,
           {
-            id: crypto.randomUUID(),
+            id: aiMessageId,
             conversation_id: conversationId!,
             sequence_number: -1,
             role: 'ai',
@@ -106,6 +116,10 @@ export function ChatPage() {
             created_at: new Date().toISOString(),
           },
         ])
+
+        if (viaVoice) {
+          speech.play(aiMessageId, response.reply)
+        }
       }
 
       const refreshed = await listConversations()
@@ -113,6 +127,63 @@ export function ChatPage() {
     } catch (err) {
       console.error('Failed to send message', err)
       setSendError('WardLog could not respond. Please try again.')
+    } finally {
+      setIsAwaitingReply(false)
+    }
+  }
+
+  async function handleSendVoice(audio: Blob, rush: boolean) {
+    setSendError(null)
+
+    let conversationId = activeConversationId
+    if (!conversationId) {
+      setIsCreatingConversation(true)
+      try {
+        const created = await createConversation()
+        conversationId = created.conversation_id
+        setActiveConversationId(conversationId)
+      } catch (err) {
+        console.error('Failed to create conversation', err)
+        setIsCreatingConversation(false)
+        setSendError('Could not start a new conversation. Please try again.')
+        return
+      }
+      setIsCreatingConversation(false)
+    }
+
+    const placeholderId = crypto.randomUUID()
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: placeholderId,
+        conversation_id: conversationId!,
+        sequence_number: -1,
+        role: 'human',
+        content: '🎤 Voice message',
+        created_at: new Date().toISOString(),
+      },
+    ])
+
+    setIsAwaitingReply(true)
+    try {
+      const response = await sendVoiceMessage(conversationId, audio, rush)
+
+      if (response.status === 'reply') {
+        const history = await getMessages(conversationId)
+        setMessages(history)
+
+        const lastMessage = history[history.length - 1]
+        if (lastMessage && lastMessage.role === 'ai') {
+          speech.play(lastMessage.id, lastMessage.content)
+        }
+      }
+
+      const refreshed = await listConversations()
+      setConversations(refreshed)
+    } catch (err) {
+      console.error('Failed to send voice message', err)
+      setSendError('WardLog could not respond. Please try again.')
+      setMessages((prev) => prev.filter((message) => message.id !== placeholderId))
     } finally {
       setIsAwaitingReply(false)
     }
@@ -132,11 +203,23 @@ export function ChatPage() {
       />
 
       <div className="flex flex-1 flex-col">
-        <MessageList messages={messages} isLoading={isLoadingMessages} isAwaitingReply={isAwaitingReply} />
+        <MessageList
+          messages={messages}
+          isLoading={isLoadingMessages}
+          isAwaitingReply={isAwaitingReply}
+          speechActiveId={speech.activeId}
+          speechStatus={speech.status}
+          onToggleSpeech={speech.play}
+        />
 
         {sendError && <p className="px-6 pb-2 text-center text-sm text-red-400">{sendError}</p>}
 
-        <Composer onSend={handleSend} isSending={isAwaitingReply || isCreatingConversation} />
+        <Composer
+          onSend={handleSend}
+          onSendVoice={handleSendVoice}
+          onMicUnlock={speech.unlock}
+          isSending={isAwaitingReply || isCreatingConversation}
+        />
       </div>
     </div>
   )
