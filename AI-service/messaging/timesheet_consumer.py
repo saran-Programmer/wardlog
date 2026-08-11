@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import threading
+from typing import Optional
 
 from kafka import KafkaConsumer
 from neo4j import GraphDatabase
@@ -9,7 +10,6 @@ from neo4j import GraphDatabase
 logger = logging.getLogger(__name__)
 
 TOPIC = "timesheet-to-ai-activity"
-
 _BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BROKER")
 
 _neo4j_driver = GraphDatabase.driver(
@@ -17,26 +17,47 @@ _neo4j_driver = GraphDatabase.driver(
     auth=(os.environ["NEO4J_USERNAME"], os.environ["NEO4J_PASSWORD"]),
 )
 
+# Maps the timesheet-service ActivityType enum values to the AI-service
+# Activity.name literals ("surgeryblock" | "clinicblock" | "oncall" | "onsiteoncall").
+_ACTIVITY_TYPE_MAP = {
+    "CLINIC_BLOCK": "clinicblock",
+    "ON_CALL": "oncall",
+    "ON_SITE_ON_CALL": "onsiteoncall",
+    "SURGERY_BLOCK": "surgeryblock",
+}
+
+
+def _to_ai_activity_type(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    mapped = _ACTIVITY_TYPE_MAP.get(value)
+    if mapped is None:
+        raise ValueError(f"Unknown activityType from timesheet: {value!r}")
+    return mapped
+
+
 _CREATE_ACTIVITY_QUERY = """
-MERGE (a:Activity {activityId: $activity_id, doctorId: $doctor_id})
-  SET a.activityType = $activity_type,
-      a.startDateTime = $start_date_time,
-      a.endDateTime = $end_date_time,
+MERGE (d:Doctor {id: $doctor_id})
+MERGE (a:Activity {id: $activity_id, doctorId: $doctor_id})
+  SET a.name = $activity_type,
+      a.start = $start_date_time,
+      a.end = $end_date_time,
       a.location = $location,
       a.notes = $notes
+MERGE (d)-[:LOGGED]->(a)
 """
 
 _UPDATE_ACTIVITY_QUERY = """
-MATCH (a:Activity {activityId: $activity_id, doctorId: $doctor_id})
-  SET a.activityType = $activity_type,
-      a.startDateTime = $start_date_time,
-      a.endDateTime = $end_date_time,
+MATCH (a:Activity {id: $activity_id, doctorId: $doctor_id})
+  SET a.name = $activity_type,
+      a.start = $start_date_time,
+      a.end = $end_date_time,
       a.location = $location,
       a.notes = $notes
 """
 
 _DELETE_ACTIVITY_QUERY = """
-MATCH (a:Activity {activityId: $activity_id, doctorId: $doctor_id})
+MATCH (a:Activity {id: $activity_id, doctorId: $doctor_id})
 DETACH DELETE a
 """
 
@@ -47,7 +68,7 @@ def _handle_created(event: dict) -> None:
             _CREATE_ACTIVITY_QUERY,
             activity_id=event["activityId"],
             doctor_id=event["doctorId"],
-            activity_type=event.get("activityType"),
+            activity_type=_to_ai_activity_type(event.get("activityType")),
             start_date_time=event.get("startDateTime"),
             end_date_time=event.get("endDateTime"),
             location=event.get("location"),
@@ -64,7 +85,7 @@ def _handle_updated(event: dict) -> None:
             _UPDATE_ACTIVITY_QUERY,
             activity_id=event["activityId"],
             doctor_id=event["doctorId"],
-            activity_type=event.get("activityType"),
+            activity_type=_to_ai_activity_type(event.get("activityType")),
             start_date_time=event.get("startDateTime"),
             end_date_time=event.get("endDateTime"),
             location=event.get("location"),
@@ -102,25 +123,21 @@ def _consume_loop(stop_event: threading.Event) -> None:
         enable_auto_commit=False,
         group_id="ai-service-timesheet-sync",
     )
-
     try:
         while not stop_event.is_set():
             records = consumer.poll(timeout_ms=1000)
             if not records:
                 continue
-
             for _partition, messages in records.items():
                 for message in messages:
                     event = message.value
                     event_type = event.get("eventType")
                     activity_id = event.get("activityId")
-
                     logger.info(
                         "Consumed timesheet event: eventType=%s activityId=%s",
                         event_type,
                         activity_id,
                     )
-
                     handler = _HANDLERS.get(event_type)
                     if handler is None:
                         logger.error(
@@ -130,7 +147,6 @@ def _consume_loop(stop_event: threading.Event) -> None:
                         )
                         consumer.commit()
                         continue
-
                     try:
                         handler(event)
                     except Exception:
@@ -142,7 +158,6 @@ def _consume_loop(stop_event: threading.Event) -> None:
                             exc_info=True,
                         )
                         continue
-
                     logger.info(
                         "Neo4j write succeeded: eventType=%s activityId=%s",
                         event_type,
