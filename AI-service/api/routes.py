@@ -9,8 +9,11 @@ from auth.token import get_doctor_context
 from graph.config import DoctorContext
 from graph.nodes.llm import synthesize_speech, transcribe_audio
 from service.conversation_service import (
+    get_conversation_for_doctor,
     get_messages,
     list_conversations,
+    purge_conversation,
+    rename_conversation,
     resume,
     send_message,
     start_conversation,
@@ -39,8 +42,19 @@ class SpeechRequest(BaseModel):
     text: str
 
 
+class RenameConversationRequest(BaseModel):
+    title: str
+
+
 def _with_request_flags(doctor: DoctorContext, rush: bool) -> DoctorContext:
     return doctor.model_copy(update={"rush": rush})
+
+
+def _require_owned_conversation(conversation_id: UUID, doctor: DoctorContext) -> dict:
+    conversation = get_conversation_for_doctor(conversation_id, doctor.id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return conversation
 
 
 @router.post("/conversations")
@@ -82,6 +96,26 @@ def get_conversation_messages(
 @router.get("/conversations")
 def get_conversations(doctor: DoctorContext = Depends(get_doctor_context)):
     return list_conversations(doctor.id)
+
+
+@router.put("/conversations/{conversation_id}")
+def put_conversation(
+    conversation_id: UUID,
+    body: RenameConversationRequest,
+    doctor: DoctorContext = Depends(get_doctor_context),
+):
+    _require_owned_conversation(conversation_id, doctor)
+    rename_conversation(conversation_id, body.title)
+    return {"conversation_id": str(conversation_id), "title": body.title}
+
+
+@router.delete("/conversations/{conversation_id}", status_code=204)
+def delete_conversation(
+    conversation_id: UUID, doctor: DoctorContext = Depends(get_doctor_context)
+):
+    _require_owned_conversation(conversation_id, doctor)
+    purge_conversation(conversation_id)
+    return Response(status_code=204)
 
 
 @router.post("/conversations/{conversation_id}/documents")

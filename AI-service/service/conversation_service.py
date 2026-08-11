@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid import UUID, uuid4
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -11,6 +12,7 @@ from db.conversation_repo import (
     set_title,
     touch_conversation,
 )
+from db.conversation_repo import delete_conversation as repo_delete_conversation
 from db.conversation_repo import get_messages as repo_get_messages
 from db.conversation_repo import list_conversations as repo_list_conversations
 from graph.build_graph import graph
@@ -85,3 +87,19 @@ def get_messages(conversation_id: UUID) -> list[dict]:
 
 def list_conversations(doctor_id: str) -> list[dict]:
     return repo_list_conversations(doctor_id)
+
+
+def get_conversation_for_doctor(conversation_id: UUID, doctor_id: str) -> Optional[dict]:
+    conversation = get_conversation(conversation_id)
+    if conversation is None or conversation["doctor_id"] != doctor_id:
+        return None
+    return conversation
+
+
+def rename_conversation(conversation_id: UUID, title: str) -> None:
+    set_title(conversation_id, title)
+
+
+def purge_conversation(conversation_id: UUID) -> None:
+    graph.checkpointer.delete_thread(str(conversation_id))
+    repo_delete_conversation(conversation_id)
