@@ -1,5 +1,6 @@
 import { apiRequest } from './client'
 import type {
+  ActivityDecision,
   Conversation,
   CreateConversationResponse,
   Message,
@@ -60,5 +61,15 @@ export function sendVoiceMessage(
   return apiRequest<SendMessageResponse>(`/api/v1/conversations/${conversationId}/voice-message`, {
     method: 'POST',
     body: formData,
+  })
+}
+
+export function resumeConversation(
+  conversationId: string,
+  decisions: ActivityDecision[],
+): Promise<SendMessageResponse> {
+  return apiRequest<SendMessageResponse>(`/api/v1/conversations/${conversationId}/resume`, {
+    method: 'POST',
+    body: { decisions },
   })
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { IconRail } from '../../components/IconRail'
 import { ConversationSidebar } from './components/ConversationSidebar'
 import { Composer } from './components/Composer'
-import { MessageList } from './components/MessageList'
+import { MessageList, type PendingInterrupt } from './components/MessageList'
 import { useSpeechPlayback } from './hooks/useSpeechPlayback'
 import {
   createConversation,
@@ -13,12 +13,13 @@ import {
   sendMessage,
   sendVoiceMessage,
 } from '../../api/conversations'
-import type { Conversation, Message } from '../../types/chat'
+import type { Conversation, Message, SendMessageResponse } from '../../types/chat'
 
 export function ChatPage() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
+  const [interrupts, setInterrupts] = useState<PendingInterrupt[]>([])
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
   const [isLoadingConversations, setIsLoadingConversations] = useState(true)
@@ -38,6 +39,7 @@ export function ChatPage() {
 
   async function handleSelectConversation(conversationId: string) {
     setActiveConversationId(conversationId)
+    setInterrupts([])
     setIsLoadingMessages(true)
     try {
       const history = await getMessages(conversationId)
@@ -63,6 +65,7 @@ export function ChatPage() {
       ])
       setActiveConversationId(conversation_id)
       setMessages([])
+      setInterrupts([])
     } catch (err) {
       console.error('Failed to create conversation', err)
     } finally {
@@ -93,6 +96,7 @@ export function ChatPage() {
     if (activeConversationId === conversationId) {
       setActiveConversationId(null)
       setMessages([])
+      setInterrupts([])
     }
   }
 
@@ -115,10 +119,11 @@ export function ChatPage() {
       setIsCreatingConversation(false)
     }
 
+    const humanMessageId = crypto.randomUUID()
     setMessages((prev) => [
       ...prev,
       {
-        id: crypto.randomUUID(),
+        id: humanMessageId,
         conversation_id: conversationId!,
         sequence_number: -1,
         role: 'human',
@@ -148,6 +153,16 @@ export function ChatPage() {
         if (viaVoice) {
           speech.play(aiMessageId, response.reply)
         }
+      } else {
+        setInterrupts((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            conversationId: conversationId!,
+            activities: response.payload,
+            afterMessageId: humanMessageId,
+          },
+        ])
       }
 
       const refreshed = await listConversations()
@@ -204,6 +219,16 @@ export function ChatPage() {
         if (lastMessage && lastMessage.role === 'ai') {
           speech.play(lastMessage.id, lastMessage.content)
         }
+      } else {
+        setInterrupts((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            conversationId: conversationId!,
+            activities: response.payload,
+            afterMessageId: placeholderId,
+          },
+        ])
       }
 
       const refreshed = await listConversations()
@@ -214,6 +239,39 @@ export function ChatPage() {
       setMessages((prev) => prev.filter((message) => message.id !== placeholderId))
     } finally {
       setIsAwaitingReply(false)
+    }
+  }
+
+  async function handleInterruptResolved(interrupt: PendingInterrupt, response: SendMessageResponse) {
+    if (response.status === 'reply') {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          conversation_id: interrupt.conversationId,
+          sequence_number: -1,
+          role: 'ai',
+          content: response.reply,
+          created_at: new Date().toISOString(),
+        },
+      ])
+    } else {
+      setInterrupts((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          conversationId: interrupt.conversationId,
+          activities: response.payload,
+          afterMessageId: interrupt.afterMessageId,
+        },
+      ])
+    }
+
+    try {
+      const refreshed = await listConversations()
+      setConversations(refreshed)
+    } catch (err) {
+      console.error('Failed to refresh conversations', err)
     }
   }
 
@@ -235,11 +293,13 @@ export function ChatPage() {
       <div className="flex flex-1 flex-col">
         <MessageList
           messages={messages}
+          interrupts={interrupts}
           isLoading={isLoadingMessages}
           isAwaitingReply={isAwaitingReply}
           speechActiveId={speech.activeId}
           speechStatus={speech.status}
           onToggleSpeech={speech.play}
+          onInterruptResolved={handleInterruptResolved}
         />
 
         {sendError && <p className="px-6 pb-2 text-center text-sm text-red-400">{sendError}</p>}
