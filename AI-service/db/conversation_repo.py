@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from .postgres import Conversation, Message, engine
@@ -115,6 +115,12 @@ def get_messages(conversation_id: UUID) -> list[dict]:
             .all()
         )
     return [_message_to_dict(row) for row in rows]
+
+
+def delete_conversation(conversation_id: UUID) -> None:
+    with Session(engine) as session, session.begin():
+        session.execute(delete(Message).where(Message.conversation_id == conversation_id))
+        session.execute(delete(Conversation).where(Conversation.id == conversation_id))
 
 
 def list_conversations(doctor_id: str) -> list[dict]:

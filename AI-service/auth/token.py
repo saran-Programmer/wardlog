@@ -31,5 +31,5 @@ def get_doctor_context(authorization: str | None = Header(default=None)) -> Doct
     claims = jwt.decode(token, options={"verify_signature": False})
 
     fields = {field: claims[claim] for claim, field in _CLAIM_TO_FIELD.items() if claim in claims}
-    # rush and voice_output are not in the token — the endpoint fills them in per request.
-    return DoctorContext(**fields, rush=False, voice_output=False)
+    # rush is not in the token — the endpoint fills it in per request.
+    return DoctorContext(**fields, rush=False)

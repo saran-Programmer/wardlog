@@ -34,4 +34,3 @@ class AssistantState(TypedDict):
     activity_not_found: NotRequired[Optional[bool]]
     activity_generated_content: NotRequired[Optional[str]]
     activity_details_data: NotRequired[Optional[ActivityDetails]]
-    audio_base64: NotRequired[Optional[str]]
