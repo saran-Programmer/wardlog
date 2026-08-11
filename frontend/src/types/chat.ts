@@ -21,6 +21,11 @@ export interface CreateConversationResponse {
   conversation_id: string
 }
 
+export interface RenameConversationResponse {
+  conversation_id: string
+  title: string
+}
+
 export interface SendMessageRequest {
   message: string
   rush: boolean

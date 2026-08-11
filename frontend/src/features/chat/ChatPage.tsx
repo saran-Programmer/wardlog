@@ -6,8 +6,10 @@ import { MessageList } from './components/MessageList'
 import { useSpeechPlayback } from './hooks/useSpeechPlayback'
 import {
   createConversation,
+  deleteConversation,
   getMessages,
   listConversations,
+  renameConversation,
   sendMessage,
   sendVoiceMessage,
 } from '../../api/conversations'
@@ -65,6 +67,32 @@ export function ChatPage() {
       console.error('Failed to create conversation', err)
     } finally {
       setIsCreatingConversation(false)
+    }
+  }
+
+  async function handleRenameConversation(conversationId: string, title: string) {
+    const previousConversations = conversations
+    setConversations((prev) =>
+      prev.map((conversation) =>
+        conversation.id === conversationId ? { ...conversation, title } : conversation,
+      ),
+    )
+
+    try {
+      await renameConversation(conversationId, title)
+    } catch (err) {
+      setConversations(previousConversations)
+      throw err
+    }
+  }
+
+  async function handleDeleteConversation(conversationId: string) {
+    await deleteConversation(conversationId)
+
+    setConversations((prev) => prev.filter((conversation) => conversation.id !== conversationId))
+    if (activeConversationId === conversationId) {
+      setActiveConversationId(null)
+      setMessages([])
     }
   }
 
@@ -200,6 +228,8 @@ export function ChatPage() {
         isOpen={isSidebarOpen}
         onSelect={handleSelectConversation}
         onNewChat={handleNewChat}
+        onRename={handleRenameConversation}
+        onDelete={handleDeleteConversation}
       />
 
       <div className="flex flex-1 flex-col">

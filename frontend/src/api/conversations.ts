@@ -3,6 +3,7 @@ import type {
   Conversation,
   CreateConversationResponse,
   Message,
+  RenameConversationResponse,
   SendMessageRequest,
   SendMessageResponse,
 } from '../types/chat'
@@ -14,6 +15,22 @@ export function listConversations(): Promise<Conversation[]> {
 export function createConversation(): Promise<CreateConversationResponse> {
   return apiRequest<CreateConversationResponse>('/api/v1/conversations', {
     method: 'POST',
+  })
+}
+
+export function renameConversation(
+  conversationId: string,
+  title: string,
+): Promise<RenameConversationResponse> {
+  return apiRequest<RenameConversationResponse>(`/api/v1/conversations/${conversationId}`, {
+    method: 'PUT',
+    body: { title },
+  })
+}
+
+export function deleteConversation(conversationId: string): Promise<void> {
+  return apiRequest<void>(`/api/v1/conversations/${conversationId}`, {
+    method: 'DELETE',
   })
 }
 
