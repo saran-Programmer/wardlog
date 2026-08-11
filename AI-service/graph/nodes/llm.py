@@ -5,6 +5,7 @@ TEXT_MODEL = "llama-3.3-70b-versatile"
 VISION_MODEL = "qwen/qwen3.6-27b"
 TTS_MODEL = "canopylabs/orpheus-v1-english"
 TTS_VOICE = "diana"
+STT_MODEL = "whisper-large-v3"
 
 # Reused across calls — reads GROQ_API_KEY from env once at import time.
 groq_client = Groq()
@@ -46,3 +47,16 @@ def synthesize_speech(text: str) -> bytes:
         response_format="wav",
     )
     return response.read()
+
+
+def transcribe_audio(file_bytes: bytes, filename: str) -> str:
+    """Transcribe an audio recording to text via Groq Whisper.
+
+    filename is passed alongside the bytes purely so Groq can infer the
+    container format (webm/ogg/wav/etc) from its extension.
+    """
+    transcription = groq_client.audio.transcriptions.create(
+        file=(filename, file_bytes),
+        model=STT_MODEL,
+    )
+    return transcription.text.strip()

@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from auth.token import get_doctor_context
 from graph.config import DoctorContext
-from graph.nodes.llm import synthesize_speech
+from graph.nodes.llm import synthesize_speech, transcribe_audio
 from service.conversation_service import (
     get_messages,
     list_conversations,
@@ -100,6 +100,32 @@ def post_document(
         temp_path = tmp.name
 
     return send_message(conversation_id, full_doctor, message, temp_path)
+
+
+@router.post("/conversations/{conversation_id}/voice-message")
+def post_voice_message(
+    conversation_id: UUID,
+    audio: UploadFile = File(...),
+    rush: bool = Form(False),
+    doctor: DoctorContext = Depends(get_doctor_context),
+):
+    full_doctor = _with_request_flags(doctor, rush)
+
+    audio_bytes = audio.file.read()
+    if not audio_bytes:
+        raise HTTPException(status_code=422, detail="Audio file is empty")
+
+    try:
+        text = transcribe_audio(audio_bytes, audio.filename or "recording.webm")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Transcription failed") from exc
+
+    print(text)
+
+    if not text:
+        raise HTTPException(status_code=422, detail="Could not transcribe any speech from the audio")
+
+    return send_message(conversation_id, full_doctor, text)
 
 
 @router.post("/speech")
