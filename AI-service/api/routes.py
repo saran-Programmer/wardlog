@@ -14,7 +14,8 @@ from service.conversation_service import (
     list_conversations,
     purge_conversation,
     rename_conversation,
-    resume,
+    resume_confirmation,
+    resume_disambiguation,
     send_message,
     start_conversation,
 )
@@ -34,7 +35,12 @@ class ActivityDecision(BaseModel):
 
 
 class ResumeRequest(BaseModel):
-    decisions: list[ActivityDecision]
+    # Confirmation resume: accepting/rejecting/editing proposed activities.
+    decisions: list[ActivityDecision] | None = None
+    # Disambiguation resume: picking a candidate activity (or CHOICE_QUERY
+    # with query_text set, to ask a follow-up instead of picking one).
+    choice: str | None = None
+    query_text: str | None = None
     rush: bool = False
 
 
@@ -80,9 +86,13 @@ def post_resume(
     doctor: DoctorContext = Depends(get_doctor_context),
 ):
     full_doctor = _with_request_flags(doctor, body.rush)
-    decisions = [d.model_dump(exclude_none=True) for d in body.decisions]
     try:
-        return resume(conversation_id, full_doctor, decisions)
+        if body.decisions is not None:
+            decisions = [d.model_dump(exclude_none=True) for d in body.decisions]
+            return resume_confirmation(conversation_id, full_doctor, decisions)
+        if body.choice is not None:
+            return resume_disambiguation(conversation_id, full_doctor, body.choice, body.query_text)
+        raise HTTPException(status_code=400, detail="Must provide either 'decisions' or 'choice'")
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

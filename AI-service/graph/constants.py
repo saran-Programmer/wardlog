@@ -23,8 +23,6 @@ ROUTE_REPORT_SAVER: Final = "report_saver"
 ROUTE_PATIENT_DETAILS: Final = "patient_details"
 ROUTE_PATIENT_DETAILS_GENERATOR: Final = "patient_details_generator"
 ROUTE_ACTIVITY_DETAILS: Final = "activity_details"
-ROUTE_ACTIVITY_LOOKUP: Final = "activity_lookup"
-ROUTE_ACTIVITY_DETAILS_GENERATOR: Final = "activity_details_generator"
 
 # additional_kwargs key on a HumanMessage carrying a supplied document's path
 # (dev CLI only — parsed from the `file (path): message` input format).
@@ -37,3 +35,10 @@ MAX_DISAMBIGUATION_CANDIDATES = 5
 # Resume choice sentinel: doctor sent a follow-up query instead of picking
 # one of the presented activity candidates.
 CHOICE_QUERY = "query"
+
+# Interrupt payload discriminator: which kind of pending decision the doctor
+# is being asked to resolve. Confirmation payloads are a proposed-activity
+# list; disambiguation payloads are a set of candidate activities to choose
+# between. `_finalize`/`resume` branch on this instead of assuming one shape.
+INTERRUPT_CONFIRMATION: Final = "confirmation"
+INTERRUPT_DISAMBIGUATION: Final = "disambiguation"

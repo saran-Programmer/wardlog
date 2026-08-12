@@ -4,8 +4,6 @@ from langgraph.graph import END, START, StateGraph
 
 from .constants import (
     ROUTE_ACTIVITY_DETAILS,
-    ROUTE_ACTIVITY_DETAILS_GENERATOR,
-    ROUTE_ACTIVITY_LOOKUP,
     ROUTE_ACTIVITY_RESOLVER,
     ROUTE_CHAT,
     ROUTE_CONFIRMATION,
@@ -60,8 +58,6 @@ from .nodes.patient_details_generator import (
     NODE_NAME as PATIENT_DETAILS_GENERATOR_NODE,
 )
 from .nodes.patient_details_generator import patient_details_generator_node
-from .nodes.activity_lookup import NODE_NAME as ACTIVITY_LOOKUP_NODE
-from .nodes.activity_lookup import activity_lookup_node, route_after_activity_lookup
 from .nodes.activity_details_generator import (
     NODE_NAME as ACTIVITY_DETAILS_GENERATOR_NODE,
 )
@@ -76,7 +72,6 @@ CHECKPOINT_SERDE = JsonPlusSerializer(
         ("graph.models.consultation", "Consultation"),
         ("graph.models.report_extraction", "ReportExtraction"),
         ("graph.models.patient_details", "PatientDetails"),
-        ("graph.models.activity_details", "ActivityDetails"),
     ]
 )
 
@@ -95,7 +90,6 @@ def build_graph():
     builder.add_node(REPORT_SAVER_NODE, report_saver_node)
     builder.add_node(PATIENT_DETAILS_FETCHER_NODE, patient_details_fetcher_node)
     builder.add_node(PATIENT_DETAILS_GENERATOR_NODE, patient_details_generator_node)
-    builder.add_node(ACTIVITY_LOOKUP_NODE, activity_lookup_node)
     builder.add_node(ACTIVITY_DETAILS_GENERATOR_NODE, activity_details_generator_node)
 
     builder.add_conditional_edges(
@@ -123,7 +117,7 @@ def build_graph():
             ROUTE_CHAT: GENERATOR_NODE,
             ROUTE_PATIENT: ORCHESTRATOR_NODE,
             ROUTE_PATIENT_DETAILS: PATIENT_DETAILS_FETCHER_NODE,
-            ROUTE_ACTIVITY_DETAILS: ACTIVITY_LOOKUP_NODE,
+            ROUTE_ACTIVITY_DETAILS: ACTIVITY_DETAILS_GENERATOR_NODE,
         },
     )
     builder.add_conditional_edges(
@@ -135,16 +129,6 @@ def build_graph():
         },
     )
     builder.add_edge(PATIENT_DETAILS_GENERATOR_NODE, GENERATOR_NODE)
-    builder.add_conditional_edges(
-        ACTIVITY_LOOKUP_NODE,
-        route_after_activity_lookup,
-        {
-            ROUTE_ACTIVITY_RESOLVER: ACTIVITY_RESOLVER_NODE,
-            ROUTE_ACTIVITY_LOOKUP: ACTIVITY_LOOKUP_NODE,
-            ROUTE_ACTIVITY_DETAILS_GENERATOR: ACTIVITY_DETAILS_GENERATOR_NODE,
-            ROUTE_GENERATOR: GENERATOR_NODE,
-        },
-    )
     builder.add_edge(ACTIVITY_DETAILS_GENERATOR_NODE, GENERATOR_NODE)
     builder.add_conditional_edges(
         EXTRACTOR_NODE,

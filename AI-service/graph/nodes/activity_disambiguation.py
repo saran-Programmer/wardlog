@@ -2,7 +2,7 @@ from langchain_core.messages import HumanMessage
 
 from langgraph.types import interrupt
 
-from ..constants import CHOICE_QUERY, MAX_DISAMBIGUATION_CANDIDATES
+from ..constants import CHOICE_QUERY, INTERRUPT_DISAMBIGUATION, MAX_DISAMBIGUATION_CANDIDATES
 from ..state import AssistantState
 
 
@@ -25,6 +25,7 @@ def resolve_candidates(state: AssistantState, node_name: str) -> dict:
 
     if n <= MAX_DISAMBIGUATION_CANDIDATES:
         payload = {
+            "type": INTERRUPT_DISAMBIGUATION,
             "options": [
                 {
                     "index": i,

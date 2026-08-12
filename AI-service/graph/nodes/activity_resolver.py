@@ -1,13 +1,14 @@
 from datetime import datetime, time, timedelta
 from typing import Optional
 
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import BaseMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
 
 from db.activity_fetcher import find_activities
 
 from ..config import DoctorContext
+from ..models.activity import Activity
 from ..models.activity_reference import ActivityReference
 from ..prompts.activity_resolver_prompt import ActivityResolverPrompt
 from ..state import AssistantState
@@ -49,6 +50,23 @@ def _build_window(ref: ActivityReference):
     return lower, upper
 
 
+def resolve_activity_references(doctor: DoctorContext, messages: list[BaseMessage]) -> list[Activity]:
+    """Extract a date/time/type reference from the conversation and return every
+    matching activity. Shared by the graph-node resolver below (which disambiguates
+    down to one activity for the patient/consultation flow) and by
+    activity_details_generator_node (which wants every match, not just one)."""
+    system_prompt = ActivityResolverPrompt().build(doctor)
+
+    ref = (
+        get_llm()
+        .with_structured_output(ActivityReference)
+        .invoke([SystemMessage(content=system_prompt), *messages])
+    )
+
+    lower, upper = _build_window(ref)
+    return find_activities(doctor.id, ref.activity_type, lower, upper)
+
+
 def activity_resolver_node(state: AssistantState, config: RunnableConfig):
     doctor = DoctorContext(
         **{
@@ -57,17 +75,5 @@ def activity_resolver_node(state: AssistantState, config: RunnableConfig):
             if k in DoctorContext.model_fields
         }
     )
-    system_prompt = ActivityResolverPrompt().build(doctor)
-
-    ref = (
-        get_llm()
-        .with_structured_output(ActivityReference)
-        .invoke([SystemMessage(content=system_prompt), *state["messages"]])
-    )
-
-    lower, upper = _build_window(ref)
-    activity_type = ref.activity_type
-
-    activities = find_activities(doctor.id, activity_type, lower, upper)
-
+    activities = resolve_activity_references(doctor, state["messages"])
     return Command(goto=state["return_to"], update={"activity_candidates": activities})

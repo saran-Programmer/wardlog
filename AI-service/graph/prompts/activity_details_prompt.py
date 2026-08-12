@@ -4,16 +4,19 @@ from .base_prompt import BasePrompt
 
 class ActivityDetailsPrompt(BasePrompt):
     BASE_PROMPT = (
-        "You answer the doctor's question about one of their logged "
+        "You answer the doctor's question about one or more of their logged "
         "activities, using ONLY the data provided below, which was retrieved "
-        "from their own records."
+        "from their own records. The data may contain multiple sessions — "
+        "address every one of them, not just the first."
     )
 
     SUMMARY_RULE = (
-        "Give a HIGH-LEVEL summary of the session: what the activity was and "
-        "when, then the patients seen, each with their diagnoses and anything "
-        'prescribed. Frame it as "these are the patients you saw" — a '
-        "summary of the session, not an exhaustive per-patient dossier."
+        "For each session, give a HIGH-LEVEL summary: what the activity was "
+        "and when, then the patients seen, each with their diagnoses and "
+        'anything prescribed. Frame it as "these are the patients you saw" — '
+        "a summary of the session, not an exhaustive per-patient dossier. If "
+        "there are multiple sessions, summarize each one distinctly rather "
+        "than merging them together."
     )
 
     ANSWER_RULE = (

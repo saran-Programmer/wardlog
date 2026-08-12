@@ -19,7 +19,12 @@ from db.conversation_repo import get_messages as repo_get_messages
 from db.conversation_repo import list_conversations as repo_list_conversations
 from graph.build_graph import graph
 from graph.config import DoctorContext
-from graph.constants import FILE_PATH_KEY
+from graph.constants import (
+    CHOICE_QUERY,
+    FILE_PATH_KEY,
+    INTERRUPT_CONFIRMATION,
+    INTERRUPT_DISAMBIGUATION,
+)
 from graph.nodes.llm import get_llm
 from graph.prompts.title_prompt import TITLE_SYSTEM_PROMPT
 
@@ -40,13 +45,28 @@ def send_message(
     return _finalize(conversation_id, result)
 
 
-def resume(conversation_id: UUID, doctor: DoctorContext, decisions: list[dict]) -> dict:
+def resume_confirmation(conversation_id: UUID, doctor: DoctorContext, decisions: list[dict]) -> dict:
     """`decisions` are id-keyed, as submitted by the frontend: [{"id", "decision", "fields"?}].
     Resolves the corresponding pending activity rows and translates them to the
     index-keyed shape the confirmation node's interrupt contract expects."""
     index_decisions = resolve_activity_rows(conversation_id, decisions)
     config = {"configurable": {"thread_id": str(conversation_id), **doctor.model_dump()}}
     result = graph.invoke(Command(resume={"decisions": index_decisions}), config)
+    return _finalize(conversation_id, result)
+
+
+def resume_disambiguation(
+    conversation_id: UUID, doctor: DoctorContext, choice: str, query_text: str | None
+) -> dict:
+    """`choice` is either the id of the candidate activity the doctor picked, or the
+    `CHOICE_QUERY` sentinel (with `query_text` set) when they asked a follow-up
+    question instead of picking one. Matches `resolve_candidates`'s interrupt
+    contract in activity_disambiguation.py, which isn't backed by persisted rows."""
+    resume_value = (
+        {"choice": CHOICE_QUERY, "text": query_text} if choice == CHOICE_QUERY else {"choice": choice}
+    )
+    config = {"configurable": {"thread_id": str(conversation_id), **doctor.model_dump()}}
+    result = graph.invoke(Command(resume=resume_value), config)
     return _finalize(conversation_id, result)
 
 
@@ -71,23 +91,36 @@ def _finalize(conversation_id: UUID, result: dict) -> dict:
     insert_messages(conversation_id, delta)
 
     if "__interrupt__" in result:
-        activities = result["__interrupt__"][0].value
-        rows = insert_activity_rows(conversation_id, activities)
+        payload = result["__interrupt__"][0].value
         touch_conversation(conversation_id)
-        return {
-            "status": "interrupt",
-            "activities": [
-                {
-                    "id": str(row["id"]),
-                    "type": row["type"],
-                    "start": row["start"],
-                    "end": row["end"],
-                    "location": row["location"],
-                    "notes": row["notes"],
-                }
-                for row in rows
-            ],
-        }
+
+        if payload["type"] == INTERRUPT_CONFIRMATION:
+            rows = insert_activity_rows(conversation_id, payload["activities"])
+            return {
+                "status": "interrupt",
+                "interrupt_type": INTERRUPT_CONFIRMATION,
+                "activities": [
+                    {
+                        "id": str(row["id"]),
+                        "type": row["type"],
+                        "start": row["start"],
+                        "end": row["end"],
+                        "location": row["location"],
+                        "notes": row["notes"],
+                    }
+                    for row in rows
+                ],
+            }
+
+        if payload["type"] == INTERRUPT_DISAMBIGUATION:
+            return {
+                "status": "interrupt",
+                "interrupt_type": INTERRUPT_DISAMBIGUATION,
+                "options": payload["options"],
+                "allow_query": payload["allow_query"],
+            }
+
+        raise ValueError(f"Unhandled interrupt type: {payload.get('type')!r}")
 
     if get_conversation(conversation_id)["title"] is None:
         first_human = next((m for m in all_messages if isinstance(m, HumanMessage)), None)

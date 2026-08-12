@@ -9,6 +9,7 @@ from db.activity_saver import write_logged_activity
 from messaging.kafka_producer import publish_activity
 
 from ..config import DoctorContext
+from ..constants import INTERRUPT_CONFIRMATION
 from ..models.activity import Activity
 from ..models.blocked_activity import BlockedActivity
 from ..state import AssistantState
@@ -29,17 +30,20 @@ def confirmation_node(state: AssistantState, config: RunnableConfig):
         }
     )
 
-    payload = [
-        {
-            "index": i,
-            "type": activity.name,
-            "start": activity.start.isoformat() if activity.start else None,
-            "end": activity.end.isoformat() if activity.end else None,
-            "location": activity.location,
-            "notes": activity.notes,
-        }
-        for i, activity in enumerate(activities)
-    ]
+    payload = {
+        "type": INTERRUPT_CONFIRMATION,
+        "activities": [
+            {
+                "index": i,
+                "type": activity.name,
+                "start": activity.start.isoformat() if activity.start else None,
+                "end": activity.end.isoformat() if activity.end else None,
+                "location": activity.location,
+                "notes": activity.notes,
+            }
+            for i, activity in enumerate(activities)
+        ],
+    }
 
     resumed = interrupt(payload)
 
