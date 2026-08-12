@@ -37,6 +37,10 @@ export function initialCardState(activity: ProposedActivity): CardState {
   }
 }
 
+export function resolvedCardState(activity: ProposedActivity, status: 'accepted' | 'rejected'): CardState {
+  return { ...initialCardState(activity), decision: status === 'rejected' ? 'reject' : 'accept' }
+}
+
 interface ActivityConfirmationCardProps {
   activity: ProposedActivity
   state: CardState

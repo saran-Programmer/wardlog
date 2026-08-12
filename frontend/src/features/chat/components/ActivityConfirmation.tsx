@@ -1,13 +1,50 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { ApiError } from '../../../api/client'
 import { resumeConversation } from '../../../api/conversations'
-import type { ActivityDecision, ActivityDecisionFields, ProposedActivity, SendMessageResponse } from '../../../types/chat'
-import { ActivityConfirmationCard, initialCardState, type CardFields, type CardState } from './ActivityConfirmationCard'
+import type {
+  ActivityDecision,
+  ActivityDecisionFields,
+  EventStatus,
+  Message,
+  ProposedActivity,
+  SendMessageResponse,
+} from '../../../types/chat'
+import {
+  ActivityConfirmationCard,
+  initialCardState,
+  resolvedCardState,
+  type CardFields,
+  type CardState,
+} from './ActivityConfirmationCard'
+
+export interface ResolvedActivityUpdate {
+  id: string
+  event_status: 'accepted' | 'rejected'
+  content: string
+}
 
 interface ActivityConfirmationProps {
   conversationId: string
-  activities: ProposedActivity[]
-  onResolved: (response: SendMessageResponse) => void
+  messages: Message[]
+  onResolved: (updates: ResolvedActivityUpdate[], response: SendMessageResponse) => void
+}
+
+function toProposedActivity(message: Message): ProposedActivity {
+  const data = JSON.parse(message.content) as {
+    type: string
+    start: string | null
+    end: string | null
+    location: string | null
+    notes: string | null
+  }
+  return {
+    id: message.id,
+    type: data.type,
+    start: data.start,
+    end: data.end,
+    location: data.location,
+    notes: data.notes,
+  }
 }
 
 function buildFieldsDiff(activity: ProposedActivity, fields: CardFields): ActivityDecisionFields | null {
@@ -27,16 +64,51 @@ function buildFieldsDiff(activity: ProposedActivity, fields: CardFields): Activi
   return Object.keys(diff).length > 0 ? diff : null
 }
 
-export function ActivityConfirmation({ conversationId, activities, onResolved }: ActivityConfirmationProps) {
-  const [cardStates, setCardStates] = useState<Record<number, CardState>>(() =>
-    Object.fromEntries(activities.map((activity) => [activity.index, initialCardState(activity)])),
+function finalActivityContent(activity: ProposedActivity, card: CardState): string {
+  if (card.decision === 'edit') {
+    return JSON.stringify({
+      type: card.fields.type,
+      start: card.fields.start ? `${card.fields.start}:00` : activity.start,
+      end: card.fields.end ? `${card.fields.end}:00` : activity.end,
+      location: card.fields.location || null,
+      notes: card.fields.notes || null,
+    })
+  }
+
+  return JSON.stringify({
+    type: activity.type,
+    start: activity.start,
+    end: activity.end,
+    location: activity.location,
+    notes: activity.notes,
+  })
+}
+
+export function ActivityConfirmation({ conversationId, messages, onResolved }: ActivityConfirmationProps) {
+  const activities = useMemo(() => messages.map(toProposedActivity), [messages])
+  const statusById = useMemo(
+    () => new Map<string, EventStatus>(messages.map((message) => [message.id, message.event_status])),
+    [messages],
+  )
+  const isPending = messages[0]?.event_status === 'pending'
+
+  const [cardStates, setCardStates] = useState<Record<string, CardState>>(() =>
+    Object.fromEntries(
+      activities.map((activity) => {
+        const status = statusById.get(activity.id)
+        const state =
+          status === 'accepted' || status === 'rejected'
+            ? resolvedCardState(activity, status)
+            : initialCardState(activity)
+        return [activity.id, state]
+      }),
+    ),
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [locked, setLocked] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  function updateCard(index: number, next: CardState) {
-    setCardStates((prev) => ({ ...prev, [index]: next }))
+  function updateCard(id: string, next: CardState) {
+    setCardStates((prev) => ({ ...prev, [id]: next }))
   }
 
   async function handleSubmit() {
@@ -44,26 +116,30 @@ export function ActivityConfirmation({ conversationId, activities, onResolved }:
     setIsSubmitting(true)
 
     const decisions: ActivityDecision[] = activities.map((activity) => {
-      const card = cardStates[activity.index]
+      const card = cardStates[activity.id]
 
       if (card.decision === 'reject') {
-        return { index: activity.index, decision: 'reject' }
+        return { id: activity.id, decision: 'reject' }
       }
 
       if (card.decision === 'edit') {
         const fields = buildFieldsDiff(activity, card.fields)
         return fields
-          ? { index: activity.index, decision: 'edit', fields }
-          : { index: activity.index, decision: 'accept' }
+          ? { id: activity.id, decision: 'edit', fields }
+          : { id: activity.id, decision: 'accept' }
       }
 
-      return { index: activity.index, decision: 'accept' }
+      return { id: activity.id, decision: 'accept' }
     })
 
     try {
       const response = await resumeConversation(conversationId, decisions)
-      setLocked(true)
-      onResolved(response)
+      const updates: ResolvedActivityUpdate[] = activities.map((activity) => ({
+        id: activity.id,
+        event_status: cardStates[activity.id].decision === 'reject' ? 'rejected' : 'accepted',
+        content: finalActivityContent(activity, cardStates[activity.id]),
+      }))
+      onResolved(updates, response)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not submit your decisions. Please try again.')
     } finally {
@@ -74,7 +150,7 @@ export function ActivityConfirmation({ conversationId, activities, onResolved }:
   return (
     <div className="w-full max-w-xl space-y-3 rounded-2xl border border-white/5 bg-surface p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-text-subtle">
-        {locked
+        {!isPending
           ? 'Reviewed'
           : `Review ${activities.length} proposed ${activities.length === 1 ? 'activity' : 'activities'}`}
       </p>
@@ -82,18 +158,18 @@ export function ActivityConfirmation({ conversationId, activities, onResolved }:
       <div className="space-y-3">
         {activities.map((activity) => (
           <ActivityConfirmationCard
-            key={activity.index}
+            key={activity.id}
             activity={activity}
-            state={cardStates[activity.index]}
-            onChange={(next) => updateCard(activity.index, next)}
-            locked={locked}
+            state={cardStates[activity.id]}
+            onChange={(next) => updateCard(activity.id, next)}
+            locked={!isPending}
           />
         ))}
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 
-      {!locked && (
+      {isPending && (
         <button
           type="button"
           onClick={handleSubmit}

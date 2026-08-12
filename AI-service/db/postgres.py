@@ -35,6 +35,7 @@ class Message(Base):
     role: Mapped[str] = mapped_column(Text, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    event_status: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 def create_tables() -> None:

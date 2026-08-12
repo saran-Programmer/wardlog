@@ -17,11 +17,11 @@ from messaging.timesheet_consumer import start_timesheet_consumer, stop_timeshee
 async def lifespan(app: FastAPI):
     create_tables()
     verify_connection()
-    start_timesheet_consumer()
-    await start_eureka_client()
+    # start_timesheet_consumer()
+    # await start_eureka_client()
     yield
-    await stop_eureka_client()
-    stop_timesheet_consumer()
+    # await stop_eureka_client()
+    # stop_timesheet_consumer()
     close_driver()
 
 

@@ -28,7 +28,7 @@ class SendMessageRequest(BaseModel):
 
 
 class ActivityDecision(BaseModel):
-    index: int
+    id: UUID
     decision: str  # "accept" | "reject" | "edit"
     fields: dict | None = None
 
@@ -80,10 +80,11 @@ def post_resume(
     doctor: DoctorContext = Depends(get_doctor_context),
 ):
     full_doctor = _with_request_flags(doctor, body.rush)
-    resume_value = {
-        "decisions": [d.model_dump(exclude_none=True) for d in body.decisions]
-    }
-    return resume(conversation_id, full_doctor, resume_value)
+    decisions = [d.model_dump(exclude_none=True) for d in body.decisions]
+    try:
+        return resume(conversation_id, full_doctor, decisions)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/conversations/{conversation_id}/messages")

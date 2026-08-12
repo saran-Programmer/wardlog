@@ -1,4 +1,5 @@
-export type MessageRole = 'human' | 'ai'
+export type MessageRole = 'human' | 'ai' | 'assistant'
+export type EventStatus = 'pending' | 'accepted' | 'rejected' | null
 
 export interface Conversation {
   id: string
@@ -15,6 +16,7 @@ export interface Message {
   role: MessageRole
   content: string
   created_at: string
+  event_status: EventStatus
 }
 
 export interface CreateConversationResponse {
@@ -39,7 +41,7 @@ export interface SendMessageReply {
 }
 
 export interface ProposedActivity {
-  index: number
+  id: string
   type: string
   start: string | null
   end: string | null
@@ -49,7 +51,7 @@ export interface ProposedActivity {
 
 export interface SendMessageInterrupt {
   status: 'interrupt'
-  payload: ProposedActivity[]
+  activities: ProposedActivity[]
 }
 
 export type SendMessageResponse = SendMessageReply | SendMessageInterrupt
@@ -65,7 +67,7 @@ export interface ActivityDecisionFields {
 }
 
 export interface ActivityDecision {
-  index: number
+  id: string
   decision: ActivityDecisionKind
   fields?: ActivityDecisionFields
 }

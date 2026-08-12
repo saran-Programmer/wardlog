@@ -5,10 +5,12 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.types import Command
 
 from db.conversation_repo import (
+    count_synced_messages,
     create_conversation,
     get_conversation,
-    get_max_sequence,
+    insert_activity_rows,
     insert_messages,
+    resolve_activity_rows,
     set_title,
     touch_conversation,
 )
@@ -38,9 +40,13 @@ def send_message(
     return _finalize(conversation_id, result)
 
 
-def resume(conversation_id: UUID, doctor: DoctorContext, resume_value: dict) -> dict:
+def resume(conversation_id: UUID, doctor: DoctorContext, decisions: list[dict]) -> dict:
+    """`decisions` are id-keyed, as submitted by the frontend: [{"id", "decision", "fields"?}].
+    Resolves the corresponding pending activity rows and translates them to the
+    index-keyed shape the confirmation node's interrupt contract expects."""
+    index_decisions = resolve_activity_rows(conversation_id, decisions)
     config = {"configurable": {"thread_id": str(conversation_id), **doctor.model_dump()}}
-    result = graph.invoke(Command(resume=resume_value), config)
+    result = graph.invoke(Command(resume={"decisions": index_decisions}), config)
     return _finalize(conversation_id, result)
 
 
@@ -52,11 +58,8 @@ def _generate_title(first_message: str) -> str:
 
 
 def _finalize(conversation_id: UUID, result: dict) -> dict:
-    if "__interrupt__" in result:
-        return {"status": "interrupt", "payload": result["__interrupt__"][0].value}
-
     all_messages = result["messages"]
-    already = get_max_sequence(conversation_id)
+    already = count_synced_messages(conversation_id)
 
     delta = []
     for msg in all_messages[already:]:
@@ -66,6 +69,25 @@ def _finalize(conversation_id: UUID, result: dict) -> dict:
             delta.append(("ai", msg.content))
 
     insert_messages(conversation_id, delta)
+
+    if "__interrupt__" in result:
+        activities = result["__interrupt__"][0].value
+        rows = insert_activity_rows(conversation_id, activities)
+        touch_conversation(conversation_id)
+        return {
+            "status": "interrupt",
+            "activities": [
+                {
+                    "id": str(row["id"]),
+                    "type": row["type"],
+                    "start": row["start"],
+                    "end": row["end"],
+                    "location": row["location"],
+                    "notes": row["notes"],
+                }
+                for row in rows
+            ],
+        }
 
     if get_conversation(conversation_id)["title"] is None:
         first_human = next((m for m in all_messages if isinstance(m, HumanMessage)), None)

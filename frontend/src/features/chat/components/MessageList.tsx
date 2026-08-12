@@ -1,38 +1,60 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { Loader2, Volume2, VolumeX } from 'lucide-react'
-import type { Message, ProposedActivity, SendMessageResponse } from '../../../types/chat'
+import type { Message, SendMessageResponse } from '../../../types/chat'
 import type { SpeechStatus } from '../hooks/useSpeechPlayback'
-import { ActivityConfirmation } from './ActivityConfirmation'
+import { ActivityConfirmation, type ResolvedActivityUpdate } from './ActivityConfirmation'
 
-export interface PendingInterrupt {
-  id: string
-  conversationId: string
-  activities: ProposedActivity[]
-  afterMessageId: string
+type TimelineEntry =
+  | { kind: 'message'; message: Message }
+  | { kind: 'activity-group'; key: string; messages: Message[] }
+
+function buildTimeline(messages: Message[]): TimelineEntry[] {
+  const entries: TimelineEntry[] = []
+  let group: Message[] = []
+
+  function flushGroup() {
+    if (group.length > 0) {
+      entries.push({ kind: 'activity-group', key: group[0].id, messages: group })
+      group = []
+    }
+  }
+
+  for (const message of messages) {
+    if (message.event_status) {
+      group.push(message)
+    } else {
+      flushGroup()
+      entries.push({ kind: 'message', message })
+    }
+  }
+  flushGroup()
+
+  return entries
 }
 
 interface MessageListProps {
+  conversationId: string | null
   messages: Message[]
-  interrupts: PendingInterrupt[]
   isLoading: boolean
   isAwaitingReply: boolean
   speechActiveId: string | null
   speechStatus: SpeechStatus
   onToggleSpeech: (id: string, text: string) => void
-  onInterruptResolved: (interrupt: PendingInterrupt, response: SendMessageResponse) => void
+  onActivityGroupResolved: (updates: ResolvedActivityUpdate[], response: SendMessageResponse) => void
 }
 
 export function MessageList({
+  conversationId,
   messages,
-  interrupts,
   isLoading,
   isAwaitingReply,
   speechActiveId,
   speechStatus,
   onToggleSpeech,
-  onInterruptResolved,
+  onActivityGroupResolved,
 }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
+  const timeline = useMemo(() => buildTimeline(messages), [messages])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'end' })
@@ -56,58 +78,58 @@ export function MessageList({
 
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-6 py-6">
-      {messages.map((message) => {
+      {timeline.map((entry) => {
+        if (entry.kind === 'activity-group') {
+          return (
+            <div key={entry.key} className="flex justify-start">
+              <ActivityConfirmation
+                conversationId={conversationId!}
+                messages={entry.messages}
+                onResolved={onActivityGroupResolved}
+              />
+            </div>
+          )
+        }
+
+        const message = entry.message
         const isAi = message.role === 'ai'
         const state: SpeechStatus = isAi && speechActiveId === message.id ? speechStatus : 'idle'
-        const messageInterrupts = interrupts.filter((interrupt) => interrupt.afterMessageId === message.id)
 
         return (
-          <div key={message.id} className="contents">
-            <div className={`flex ${message.role === 'human' ? 'justify-end' : 'justify-start'}`}>
-              <div
-                className={`max-w-[65%] rounded-2xl px-4 py-2.5 text-sm ${
-                  message.role === 'human' ? 'bg-accent-muted text-text' : 'bg-surface-raised text-text'
-                }`}
-              >
-                <p className="whitespace-pre-wrap">{message.content}</p>
+          <div key={message.id} className={`flex ${message.role === 'human' ? 'justify-end' : 'justify-start'}`}>
+            <div
+              className={`max-w-[65%] rounded-2xl px-4 py-2.5 text-sm ${
+                message.role === 'human' ? 'bg-accent-muted text-text' : 'bg-surface-raised text-text'
+              }`}
+            >
+              <p className="whitespace-pre-wrap">{message.content}</p>
 
-                {isAi && (
-                  <div className="mt-1.5 flex justify-end">
-                    <button
-                      type="button"
-                      aria-label={
-                        state === 'playing'
-                          ? 'Stop playback'
-                          : state === 'loading'
-                            ? 'Generating audio…'
-                            : state === 'error'
-                              ? 'Playback failed'
-                              : 'Play message aloud'
-                      }
-                      onClick={() => onToggleSpeech(message.id, message.content)}
-                      disabled={state === 'loading'}
-                      className={`flex h-6 w-6 items-center justify-center rounded-full text-text-subtle transition-colors hover:text-text disabled:opacity-70 ${
-                        state === 'playing' ? 'text-accent-strong' : ''
-                      } ${state === 'error' ? 'text-red-400' : ''}`}
-                    >
-                      {state === 'loading' && <Loader2 size={14} className="animate-spin" />}
-                      {state === 'error' && <VolumeX size={14} />}
-                      {(state === 'idle' || state === 'playing') && <Volume2 size={14} />}
-                    </button>
-                  </div>
-                )}
-              </div>
+              {isAi && (
+                <div className="mt-1.5 flex justify-end">
+                  <button
+                    type="button"
+                    aria-label={
+                      state === 'playing'
+                        ? 'Stop playback'
+                        : state === 'loading'
+                          ? 'Generating audio…'
+                          : state === 'error'
+                            ? 'Playback failed'
+                            : 'Play message aloud'
+                    }
+                    onClick={() => onToggleSpeech(message.id, message.content)}
+                    disabled={state === 'loading'}
+                    className={`flex h-6 w-6 items-center justify-center rounded-full text-text-subtle transition-colors hover:text-text disabled:opacity-70 ${
+                      state === 'playing' ? 'text-accent-strong' : ''
+                    } ${state === 'error' ? 'text-red-400' : ''}`}
+                  >
+                    {state === 'loading' && <Loader2 size={14} className="animate-spin" />}
+                    {state === 'error' && <VolumeX size={14} />}
+                    {(state === 'idle' || state === 'playing') && <Volume2 size={14} />}
+                  </button>
+                </div>
+              )}
             </div>
-
-            {messageInterrupts.map((interrupt) => (
-              <div key={interrupt.id} className="flex justify-start">
-                <ActivityConfirmation
-                  conversationId={interrupt.conversationId}
-                  activities={interrupt.activities}
-                  onResolved={(response) => onInterruptResolved(interrupt, response)}
-                />
-              </div>
-            ))}
           </div>
         )
       })}
