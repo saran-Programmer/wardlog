@@ -73,3 +73,14 @@ export function resumeConversation(
     body: { decisions },
   })
 }
+
+export function resumeDisambiguation(
+  conversationId: string,
+  choice: string,
+  queryText?: string,
+): Promise<SendMessageResponse> {
+  return apiRequest<SendMessageResponse>(`/api/v1/conversations/${conversationId}/resume`, {
+    method: 'POST',
+    body: { choice, query_text: queryText },
+  })
+}

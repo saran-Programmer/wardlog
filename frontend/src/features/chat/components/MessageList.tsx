@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { Loader2, Volume2, VolumeX } from 'lucide-react'
-import type { Message, SendMessageResponse } from '../../../types/chat'
+import type { Message, SendMessageDisambiguationInterrupt, SendMessageResponse } from '../../../types/chat'
 import type { SpeechStatus } from '../hooks/useSpeechPlayback'
 import { ActivityConfirmation, type ResolvedActivityUpdate } from './ActivityConfirmation'
+import { DisambiguationPrompt } from './DisambiguationPrompt'
 
 type TimelineEntry =
   | { kind: 'message'; message: Message }
@@ -41,6 +42,8 @@ interface MessageListProps {
   speechStatus: SpeechStatus
   onToggleSpeech: (id: string, text: string) => void
   onActivityGroupResolved: (updates: ResolvedActivityUpdate[], response: SendMessageResponse) => void
+  pendingDisambiguation: SendMessageDisambiguationInterrupt | null
+  onDisambiguationResolved: (humanSummary: string, response: SendMessageResponse) => void
 }
 
 export function MessageList({
@@ -52,6 +55,8 @@ export function MessageList({
   speechStatus,
   onToggleSpeech,
   onActivityGroupResolved,
+  pendingDisambiguation,
+  onDisambiguationResolved,
 }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const timeline = useMemo(() => buildTimeline(messages), [messages])
@@ -68,10 +73,11 @@ export function MessageList({
     )
   }
 
-  if (messages.length === 0 && !isAwaitingReply) {
+  if (messages.length === 0 && !isAwaitingReply && !pendingDisambiguation) {
     return (
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-text-subtle">Tell WardLog what you did today to get started.</p>
+      <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
+        <h1 className="text-3xl font-semibold text-text">What did you work on today?</h1>
+        <p className="text-sm text-text-muted">Tell WardLog and it'll draft the activity for your review.</p>
       </div>
     )
   }
@@ -133,6 +139,16 @@ export function MessageList({
           </div>
         )
       })}
+
+      {pendingDisambiguation && conversationId && (
+        <div className="flex justify-start">
+          <DisambiguationPrompt
+            conversationId={conversationId}
+            interrupt={pendingDisambiguation}
+            onResolved={onDisambiguationResolved}
+          />
+        </div>
+      )}
 
       {isAwaitingReply && (
         <div className="flex justify-start">

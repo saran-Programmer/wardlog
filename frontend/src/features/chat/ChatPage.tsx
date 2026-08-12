@@ -14,7 +14,14 @@ import {
   sendMessage,
   sendVoiceMessage,
 } from '../../api/conversations'
-import type { Conversation, Message, SendMessageResponse } from '../../types/chat'
+import type {
+  Conversation,
+  Message,
+  SendMessageDisambiguationInterrupt,
+  SendMessageReply,
+  SendMessageConfirmationInterrupt,
+  SendMessageResponse,
+} from '../../types/chat'
 
 function activityContent(activity: {
   type: string
@@ -32,7 +39,10 @@ function activityContent(activity: {
   })
 }
 
-function messagesFromResponse(conversationId: string, response: SendMessageResponse): Message[] {
+function messagesFromResponse(
+  conversationId: string,
+  response: SendMessageReply | SendMessageConfirmationInterrupt,
+): Message[] {
   const now = new Date().toISOString()
 
   if (response.status === 'reply') {
@@ -60,10 +70,15 @@ function messagesFromResponse(conversationId: string, response: SendMessageRespo
   }))
 }
 
+function isDisambiguation(response: SendMessageResponse): response is SendMessageDisambiguationInterrupt {
+  return response.status === 'interrupt' && response.interrupt_type === 'disambiguation'
+}
+
 export function ChatPage() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
+  const [pendingDisambiguation, setPendingDisambiguation] = useState<SendMessageDisambiguationInterrupt | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
   const [isLoadingConversations, setIsLoadingConversations] = useState(true)
@@ -83,6 +98,7 @@ export function ChatPage() {
 
   async function handleSelectConversation(conversationId: string) {
     setActiveConversationId(conversationId)
+    setPendingDisambiguation(null)
     setIsLoadingMessages(true)
     try {
       const history = await getMessages(conversationId)
@@ -108,6 +124,7 @@ export function ChatPage() {
       ])
       setActiveConversationId(conversation_id)
       setMessages([])
+      setPendingDisambiguation(null)
     } catch (err) {
       console.error('Failed to create conversation', err)
     } finally {
@@ -138,6 +155,7 @@ export function ChatPage() {
     if (activeConversationId === conversationId) {
       setActiveConversationId(null)
       setMessages([])
+      setPendingDisambiguation(null)
     }
   }
 
@@ -177,11 +195,16 @@ export function ChatPage() {
     try {
       const response = await sendMessage(conversationId, { message: text, rush, voice_output: false })
 
-      const newMessages = messagesFromResponse(conversationId, response)
-      setMessages((prev) => [...prev, ...newMessages])
+      if (isDisambiguation(response)) {
+        setPendingDisambiguation(response)
+      } else {
+        setPendingDisambiguation(null)
+        const newMessages = messagesFromResponse(conversationId, response)
+        setMessages((prev) => [...prev, ...newMessages])
 
-      if (response.status === 'reply' && viaVoice) {
-        speech.play(newMessages[0].id, response.reply)
+        if (response.status === 'reply' && viaVoice) {
+          speech.play(newMessages[0].id, response.reply)
+        }
       }
 
       const refreshed = await listConversations()
@@ -233,6 +256,7 @@ export function ChatPage() {
 
       const history = await getMessages(conversationId)
       setMessages(history)
+      setPendingDisambiguation(isDisambiguation(response) ? response : null)
 
       if (response.status === 'reply') {
         const lastMessage = history[history.length - 1]
@@ -254,6 +278,7 @@ export function ChatPage() {
 
   async function handleActivityGroupResolved(updates: ResolvedActivityUpdate[], response: SendMessageResponse) {
     if (!activeConversationId) return
+    const conversationId = activeConversationId
 
     setMessages((prev) => {
       const updateById = new Map(updates.map((update) => [update.id, update]))
@@ -261,7 +286,38 @@ export function ChatPage() {
         const update = updateById.get(message.id)
         return update ? { ...message, event_status: update.event_status, content: update.content } : message
       })
-      return [...patched, ...messagesFromResponse(activeConversationId, response)]
+      return isDisambiguation(response) ? patched : [...patched, ...messagesFromResponse(conversationId, response)]
+    })
+
+    setPendingDisambiguation(isDisambiguation(response) ? response : null)
+
+    try {
+      const refreshed = await listConversations()
+      setConversations(refreshed)
+    } catch (err) {
+      console.error('Failed to refresh conversations', err)
+    }
+  }
+
+  async function handleDisambiguationResolved(humanSummary: string, response: SendMessageResponse) {
+    if (!activeConversationId) return
+    const conversationId = activeConversationId
+
+    setPendingDisambiguation(isDisambiguation(response) ? response : null)
+
+    setMessages((prev) => {
+      const humanMessage: Message = {
+        id: crypto.randomUUID(),
+        conversation_id: conversationId,
+        sequence_number: -1,
+        role: 'human',
+        content: humanSummary,
+        created_at: new Date().toISOString(),
+        event_status: null,
+      }
+      return isDisambiguation(response)
+        ? [...prev, humanMessage]
+        : [...prev, humanMessage, ...messagesFromResponse(conversationId, response)]
     })
 
     try {
@@ -297,6 +353,8 @@ export function ChatPage() {
           speechStatus={speech.status}
           onToggleSpeech={speech.play}
           onActivityGroupResolved={handleActivityGroupResolved}
+          pendingDisambiguation={pendingDisambiguation}
+          onDisambiguationResolved={handleDisambiguationResolved}
         />
 
         {sendError && <p className="px-6 pb-2 text-center text-sm text-red-400">{sendError}</p>}
