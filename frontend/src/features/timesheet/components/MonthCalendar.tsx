@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
-import { MoreHorizontal } from 'lucide-react'
+import { Loader2, MoreHorizontal } from 'lucide-react'
 import { getActivities } from '../../../api/activities'
 import { ApiError } from '../../../api/client'
 import { getActivityTypeOption } from '../../../lib/activityType'
@@ -38,9 +38,11 @@ export function MonthCalendar({ monthDate, direction, onSelectDay }: MonthCalend
 
   const [activities, setActivities] = useState<ActivityResponse[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
+    setIsLoading(true)
     setLoadError(null)
     const startDate = toDateInputValue(new Date(year, month, 1))
     const endDate = toDateInputValue(new Date(year, month, daysInMonth))
@@ -51,6 +53,9 @@ export function MonthCalendar({ monthDate, direction, onSelectDay }: MonthCalend
       })
       .catch((err) => {
         if (!cancelled) setLoadError(err instanceof ApiError ? err.message : 'Unable to load activities.')
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
       })
 
     return () => {
@@ -89,7 +94,15 @@ export function MonthCalendar({ monthDate, direction, onSelectDay }: MonthCalend
     const observer = new ResizeObserver(measure)
     observer.observe(container)
     return () => observer.disconnect()
-  }, [])
+  }, [isLoading])
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center">
+        <Loader2 size={24} className="animate-spin text-text-muted" />
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">

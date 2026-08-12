@@ -1,4 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react'
+import { Loader2 } from 'lucide-react'
 import { useUser } from '../../../hooks/useUser'
 import { getActivities } from '../../../api/activities'
 import { ApiError } from '../../../api/client'
@@ -34,9 +35,11 @@ export function DayCalendar({ date, direction }: DayCalendarProps) {
   const [activities, setActivities] = useState<ActivityResponse[]>([])
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
+    setIsLoading(true)
     setLoadError(null)
     const isoDate = toDateInputValue(date)
 
@@ -46,6 +49,9 @@ export function DayCalendar({ date, direction }: DayCalendarProps) {
       })
       .catch((err) => {
         if (!cancelled) setLoadError(err instanceof ApiError ? err.message : 'Unable to load activities.')
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
       })
 
     return () => {
@@ -77,6 +83,14 @@ export function DayCalendar({ date, direction }: DayCalendarProps) {
       },
     ]
   })
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center">
+        <Loader2 size={24} className="animate-spin text-text-muted" />
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
