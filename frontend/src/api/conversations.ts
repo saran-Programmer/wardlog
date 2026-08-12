@@ -49,6 +49,23 @@ export function sendMessage(
   })
 }
 
+export function sendDocument(
+  conversationId: string,
+  file: File,
+  message: string,
+  rush: boolean,
+): Promise<SendMessageResponse> {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('message', message)
+  formData.append('rush', String(rush))
+
+  return apiRequest<SendMessageResponse>(`/api/v1/conversations/${conversationId}/documents`, {
+    method: 'POST',
+    body: formData,
+  })
+}
+
 export function sendVoiceMessage(
   conversationId: string,
   audio: Blob,

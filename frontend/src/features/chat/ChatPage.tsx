@@ -11,6 +11,7 @@ import {
   getMessages,
   listConversations,
   renameConversation,
+  sendDocument,
   sendMessage,
   sendVoiceMessage,
 } from '../../api/conversations'
@@ -159,7 +160,7 @@ export function ChatPage() {
     }
   }
 
-  async function handleSend(text: string, rush: boolean, viaVoice = false) {
+  async function handleSend(text: string, rush: boolean, viaVoice = false, file: File | null = null) {
     setSendError(null)
 
     let conversationId = activeConversationId
@@ -185,7 +186,7 @@ export function ChatPage() {
         conversation_id: conversationId!,
         sequence_number: -1,
         role: 'human',
-        content: text,
+        content: text || `📎 ${file!.name}`,
         created_at: new Date().toISOString(),
         event_status: null,
       },
@@ -193,7 +194,9 @@ export function ChatPage() {
 
     setIsAwaitingReply(true)
     try {
-      const response = await sendMessage(conversationId, { message: text, rush, voice_output: false })
+      const response = file
+        ? await sendDocument(conversationId, file, text, rush)
+        : await sendMessage(conversationId, { message: text, rush, voice_output: false })
 
       if (isDisambiguation(response)) {
         setPendingDisambiguation(response)

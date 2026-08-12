@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'r
 import { ArrowUp, Mic, Paperclip, Plus, Square, X, Zap } from 'lucide-react'
 
 interface ComposerProps {
-  onSend: (message: string, rush: boolean, viaVoice?: boolean) => void
+  onSend: (message: string, rush: boolean, viaVoice?: boolean, file?: File | null) => void
   onSendVoice: (audio: Blob, rush: boolean) => void
   onMicUnlock?: () => void
   isSending: boolean
@@ -11,7 +11,7 @@ interface ComposerProps {
 export function Composer({ onSend, onSendVoice, onMicUnlock, isSending }: ComposerProps) {
   const [message, setMessage] = useState('')
   const [rush, setRush] = useState(false)
-  const [attachments, setAttachments] = useState<File[]>([])
+  const [attachment, setAttachment] = useState<File | null>(null)
   const [isRecording, setIsRecording] = useState(false)
   const [micError, setMicError] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -28,21 +28,22 @@ export function Composer({ onSend, onSendVoice, onMicUnlock, isSending }: Compos
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
     const trimmed = message.trim()
-    if (!trimmed || isSending) return
-    onSend(trimmed, rush, false)
+    if (isSending || (!trimmed && !attachment)) return
+    onSend(trimmed, rush, false, attachment)
     setMessage('')
+    setAttachment(null)
   }
 
   function handleFilesSelected(event: ChangeEvent<HTMLInputElement>) {
     const files = event.target.files
     if (files && files.length > 0) {
-      setAttachments((prev) => [...prev, ...Array.from(files)])
+      setAttachment(files[0])
     }
     event.target.value = ''
   }
 
-  function removeAttachment(index: number) {
-    setAttachments((prev) => prev.filter((_, i) => i !== index))
+  function removeAttachment() {
+    setAttachment(null)
   }
 
   function stopStream() {
@@ -103,25 +104,20 @@ export function Composer({ onSend, onSendVoice, onMicUnlock, isSending }: Compos
   return (
     <div className="px-6 pb-4">
       <form onSubmit={handleSubmit} className="rounded-2xl border border-white/5 bg-surface-raised p-3">
-        {attachments.length > 0 && (
+        {attachment && (
           <div className="mb-2 flex flex-wrap gap-2">
-            {attachments.map((file, index) => (
-              <div
-                key={`${file.name}-${index}`}
-                className="flex items-center gap-2 rounded-lg bg-accent-muted px-3 py-1.5 text-sm text-text"
+            <div className="flex items-center gap-2 rounded-lg bg-accent-muted px-3 py-1.5 text-sm text-text">
+              <Paperclip size={14} className="shrink-0 text-accent-strong" />
+              <span className="max-w-[220px] truncate">{attachment.name}</span>
+              <button
+                type="button"
+                aria-label={`Remove ${attachment.name}`}
+                onClick={removeAttachment}
+                className="flex h-4 w-4 items-center justify-center text-text-muted hover:text-text"
               >
-                <Paperclip size={14} className="shrink-0 text-accent-strong" />
-                <span className="max-w-[220px] truncate">{file.name}</span>
-                <button
-                  type="button"
-                  aria-label={`Remove ${file.name}`}
-                  onClick={() => removeAttachment(index)}
-                  className="flex h-4 w-4 items-center justify-center text-text-muted hover:text-text"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
+                <X size={14} />
+              </button>
+            </div>
           </div>
         )}
 
@@ -138,7 +134,6 @@ export function Composer({ onSend, onSendVoice, onMicUnlock, isSending }: Compos
               ref={fileInputRef}
               type="file"
               accept="image/*"
-              multiple
               onChange={handleFilesSelected}
               className="hidden"
             />
@@ -180,7 +175,7 @@ export function Composer({ onSend, onSendVoice, onMicUnlock, isSending }: Compos
             <button
               type="submit"
               aria-label="Send"
-              disabled={isSending || isRecording || message.trim().length === 0}
+              disabled={isSending || isRecording || (message.trim().length === 0 && !attachment)}
               className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-bg hover:opacity-90 disabled:opacity-60"
             >
               <ArrowUp size={16} />
