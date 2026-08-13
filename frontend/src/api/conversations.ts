@@ -49,6 +49,23 @@ export function sendMessage(
   })
 }
 
+export function sendDocument(
+  conversationId: string,
+  file: File,
+  message: string,
+  rush: boolean,
+): Promise<SendMessageResponse> {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('message', message)
+  formData.append('rush', String(rush))
+
+  return apiRequest<SendMessageResponse>(`/api/v1/conversations/${conversationId}/documents`, {
+    method: 'POST',
+    body: formData,
+  })
+}
+
 export function sendVoiceMessage(
   conversationId: string,
   audio: Blob,
@@ -71,5 +88,16 @@ export function resumeConversation(
   return apiRequest<SendMessageResponse>(`/api/v1/conversations/${conversationId}/resume`, {
     method: 'POST',
     body: { decisions },
+  })
+}
+
+export function resumeDisambiguation(
+  conversationId: string,
+  choice: string,
+  queryText?: string,
+): Promise<SendMessageResponse> {
+  return apiRequest<SendMessageResponse>(`/api/v1/conversations/${conversationId}/resume`, {
+    method: 'POST',
+    body: { choice, query_text: queryText },
   })
 }

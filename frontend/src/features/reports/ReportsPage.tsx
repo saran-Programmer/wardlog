@@ -1,4 +1,4 @@
-import { BarChart2, ChevronRight, TrendingUp } from 'lucide-react'
+import { BarChart2, ChevronRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { IconRail } from '../../components/IconRail'
 
@@ -8,12 +8,6 @@ const reports = [
     icon: BarChart2,
     title: 'Activity Comparison',
     description: 'Bar chart comparing how much work is done across activity types over a date range',
-  },
-  {
-    to: '/reports/activity-trends',
-    icon: TrendingUp,
-    title: 'Activity Trends',
-    description: 'Line graph comparing how workload has changed over time',
   },
 ]
 

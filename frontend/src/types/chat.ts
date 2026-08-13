@@ -49,10 +49,30 @@ export interface ProposedActivity {
   notes: string | null
 }
 
-export interface SendMessageInterrupt {
+export interface SendMessageConfirmationInterrupt {
   status: 'interrupt'
+  interrupt_type: 'confirmation'
   activities: ProposedActivity[]
 }
+
+export interface DisambiguationOption {
+  index: number
+  id: string
+  type: string
+  start: string | null
+  end: string | null
+  location: string | null
+  notes: string | null
+}
+
+export interface SendMessageDisambiguationInterrupt {
+  status: 'interrupt'
+  interrupt_type: 'disambiguation'
+  options: DisambiguationOption[]
+  allow_query: boolean
+}
+
+export type SendMessageInterrupt = SendMessageConfirmationInterrupt | SendMessageDisambiguationInterrupt
 
 export type SendMessageResponse = SendMessageReply | SendMessageInterrupt
 
@@ -72,6 +92,15 @@ export interface ActivityDecision {
   fields?: ActivityDecisionFields
 }
 
-export interface ResumeRequest {
+export interface ConfirmationResumeRequest {
   decisions: ActivityDecision[]
+}
+
+// Sentinel `choice` value: doctor sent a follow-up question instead of
+// picking one of the presented disambiguation options.
+export const DISAMBIGUATION_QUERY_CHOICE = 'query' as const
+
+export interface DisambiguationResumeRequest {
+  choice: string
+  query_text?: string
 }
