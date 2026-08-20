@@ -79,9 +79,9 @@ I used LangGraph here instead of LangChain because a plain LangChain sequence ru
 
 ## Blog
 
-A deeper technical write-up on how WardLog was built — the LangGraph pipeline, the microservices, and the AWS deployment — is coming soon.
+A deeper technical write-up on how WardLog was built is added to the blog. Make sure to check it out.
 
-*(link to be added)*
+**[Read the full write-up →](https://saranbuilds.hashnode.dev/wardlog-doctors-voice-assistant)**
 
 ## About this project
 
