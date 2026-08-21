@@ -1,7 +1,7 @@
 from groq import Groq
 from langchain_groq import ChatGroq
 
-TEXT_MODEL = "llama-3.3-70b-versatile"
+TEXT_MODEL = "openai/gpt-oss-120b"
 VISION_MODEL = "qwen/qwen3.6-27b"
 TTS_MODEL = "canopylabs/orpheus-v1-english"
 TTS_VOICE = "diana"
@@ -17,7 +17,7 @@ def get_llm(temperature: float = 0) -> ChatGroq:
     picks the temperature it needs (e.g. 0 for deterministic routing, higher
     for more varied generation).
     """
-    return ChatGroq(model=TEXT_MODEL, temperature=temperature)
+    return ChatGroq(model=TEXT_MODEL, temperature=temperature, reasoning_effort=None)
 
 
 def get_vision_llm(temperature: float = 0) -> ChatGroq:
