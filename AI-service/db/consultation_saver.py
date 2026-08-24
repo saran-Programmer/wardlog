@@ -9,13 +9,12 @@ _WRITE_CONSULTATION_QUERY = """
 MATCH (a:Activity {id: $activity_id, doctorId: $doctor_id})
 CREATE (c:Consultation {id: $consultation_id, doctorId: $doctor_id})
 MERGE (a)-[:HAS_CONSULTATION]->(c)
-FOREACH (_ IN CASE WHEN $patient_key IS NOT NULL THEN [1] ELSE [] END |
-  MERGE (p:Patient {key: $patient_key, doctorId: $doctor_id})
-    SET p.name = $patient_name,
-        p.age = coalesce($patient_age, p.age),
-        p.sex = coalesce($patient_sex, p.sex)
-  MERGE (c)-[:WITH_PATIENT]->(p)
-)
+MERGE (p:Patient {key: $patient_key, doctorId: $doctor_id})
+  ON CREATE SET p.id = $patient_id
+  SET p.name = $patient_name,
+      p.age = coalesce($patient_age, p.age),
+      p.sex = coalesce($patient_sex, p.sex)
+MERGE (c)-[:WITH_PATIENT]->(p)
 FOREACH (diagnosis IN $diagnoses |
   MERGE (dx:Diagnosis {key: diagnosis.key, doctorId: $doctor_id})
     SET dx.name = diagnosis.name
@@ -31,6 +30,7 @@ FOREACH (_ IN CASE WHEN $surgery_type IS NOT NULL THEN [1] ELSE [] END |
     SET st.name = $surgery_type.name
   MERGE (c)-[:SURGERY_TYPE]->(st)
 )
+RETURN p.id AS patient_id
 """
 
 
@@ -38,13 +38,15 @@ def save_consultation(doctor_id: str, activity_id: str, consultation: Consultati
     consultation_id = str(uuid4())
 
     patient = consultation.patient
+    patient_id = str(uuid4())
 
     def _write(tx):
-        tx.run(
+        result = tx.run(
             _WRITE_CONSULTATION_QUERY,
             doctor_id=doctor_id,
             activity_id=activity_id,
             consultation_id=consultation_id,
+            patient_id=patient_id,
             patient_key=normalize_key(patient.name) if patient else None,
             patient_name=patient.name if patient else None,
             patient_age=patient.age if patient else None,
@@ -65,8 +67,7 @@ def save_consultation(doctor_id: str, activity_id: str, consultation: Consultati
                 else None
             ),
         )
+        return result.single()["patient_id"]
 
     with driver.session() as session:
-        session.execute_write(_write)
-
-    return consultation_id
+        return session.execute_write(_write)
