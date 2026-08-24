@@ -32,13 +32,15 @@ FILE_PATH_KEY = "file_path"
 # doctor for disambiguation before asking them to narrow the search instead.
 MAX_DISAMBIGUATION_CANDIDATES = 5
 
-# Resume choice sentinel: doctor sent a follow-up query instead of picking
-# one of the presented activity candidates.
 CHOICE_QUERY = "query"
-
-# Interrupt payload discriminator: which kind of pending decision the doctor
-# is being asked to resolve. Confirmation payloads are a proposed-activity
-# list; disambiguation payloads are a set of candidate activities to choose
-# between. `_finalize`/`resume` branch on this instead of assuming one shape.
 INTERRUPT_CONFIRMATION: Final = "confirmation"
 INTERRUPT_DISAMBIGUATION: Final = "disambiguation"
+PATIENT_MATCH_THRESHOLD = 70
+
+# Patient resolver decision outcomes — which case patient_resolver_node landed
+# in after searching for candidates.
+PATIENT_MATCH_NONE: Final = "none"  # no candidates — create a new patient
+PATIENT_MATCH_CLEAR: Final = "clear"  # one confident match — link to it
+PATIENT_MATCH_AMBIGUOUS: Final = "ambiguous"  # unclear — ask the doctor
+
+INTERRUPT_PATIENT_MATCH: Final = "patient_match"
