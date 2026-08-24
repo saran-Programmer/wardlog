@@ -27,7 +27,10 @@ class ConsultationExtractorPrompt(BasePrompt):
         "- drugs: any medication given or prescribed, as a list of names "
         "(optional).\n"
         "- surgery_type: the type of surgery performed, if this was a surgical "
-        "case."
+        "case.\n"
+        "- patient_reference_id: the patient's hospital-assigned ID number or "
+        "code (e.g. MRN, UHID), only if the doctor explicitly states one (e.g. "
+        "\"MRN 4432\"). Leave null otherwise."
     )
 
     CONDITIONAL_RULE = (
@@ -41,9 +44,10 @@ class ConsultationExtractorPrompt(BasePrompt):
 
     EXTRACTION_RULE = (
         "Only extract what the doctor actually said. Do not guess or invent a "
-        "name, age, sex, diagnosis, drug, or surgery type that was not stated. "
-        "The patient's name is required — if no patient is clearly identified, "
-        "still extract what was said but leave unknown fields null."
+        "name, age, sex, patient_reference_id, diagnosis, drug, or surgery type "
+        "that was not stated. The patient's name is required — if no patient is "
+        "clearly identified, still extract what was said but leave unknown "
+        "fields null."
     )
 
     def _content(self, doctor: DoctorContext) -> list[str]:

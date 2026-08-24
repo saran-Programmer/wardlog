@@ -13,7 +13,8 @@ MERGE (p:Patient {key: $patient_key, doctorId: $doctor_id})
   ON CREATE SET p.id = $patient_id
   SET p.name = $patient_name,
       p.age = coalesce($patient_age, p.age),
-      p.sex = coalesce($patient_sex, p.sex)
+      p.sex = coalesce($patient_sex, p.sex),
+      p.patientReferenceId = coalesce($patient_reference_id, p.patientReferenceId)
 MERGE (c)-[:WITH_PATIENT]->(p)
 FOREACH (diagnosis IN $diagnoses |
   MERGE (dx:Diagnosis {key: diagnosis.key, doctorId: $doctor_id})
@@ -51,6 +52,7 @@ def save_consultation(doctor_id: str, activity_id: str, consultation: Consultati
             patient_name=patient.name if patient else None,
             patient_age=patient.age if patient else None,
             patient_sex=patient.sex if patient else None,
+            patient_reference_id=patient.patient_reference_id if patient else None,
             diagnoses=[
                 {"key": normalize_key(name), "name": name}
                 for name in consultation.diagnoses
