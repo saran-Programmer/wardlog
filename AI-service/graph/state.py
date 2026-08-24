@@ -32,3 +32,4 @@ class AssistantState(TypedDict):
     patient_details_data: NotRequired[Optional[PatientDetails]]
     activity_not_found: NotRequired[Optional[bool]]
     activity_generated_content: NotRequired[Optional[str]]
+    patient_candidates: NotRequired[Optional[list[dict]]]
