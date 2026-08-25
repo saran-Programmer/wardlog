@@ -16,6 +16,7 @@ from service.conversation_service import (
     rename_conversation,
     resume_confirmation,
     resume_disambiguation,
+    resume_patient_match,
     send_message,
     start_conversation,
 )
@@ -41,6 +42,9 @@ class ResumeRequest(BaseModel):
     # with query_text set, to ask a follow-up instead of picking one).
     choice: str | None = None
     query_text: str | None = None
+    # Patient-match resume: free-text reply naming an existing candidate or
+    # indicating this is a new patient (see patient_resolver_node).
+    answer: str | None = None
     rush: bool = False
 
 
@@ -92,7 +96,9 @@ def post_resume(
             return resume_confirmation(conversation_id, full_doctor, decisions)
         if body.choice is not None:
             return resume_disambiguation(conversation_id, full_doctor, body.choice, body.query_text)
-        raise HTTPException(status_code=400, detail="Must provide either 'decisions' or 'choice'")
+        if body.answer is not None:
+            return resume_patient_match(conversation_id, full_doctor, body.answer)
+        raise HTTPException(status_code=400, detail="Must provide 'decisions', 'choice', or 'answer'")
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

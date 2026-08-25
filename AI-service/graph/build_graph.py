@@ -16,6 +16,7 @@ from .constants import (
     ROUTE_PATIENT_DETAILS_GENERATOR,
     ROUTE_PATIENT_EXTRACTOR,
     ROUTE_PATIENT_ORCHESTRATOR,
+    ROUTE_PATIENT_RESOLVER,
     ROUTE_REPORT_EXTRACTOR,
     ROUTE_REPORT_SAVER,
 )
@@ -39,6 +40,8 @@ from .nodes.patient_orchestrator import (
     patient_orchestrator_node,
     route_after_orchestrator,
 )
+from .nodes.patient_resolver import NODE_NAME as PATIENT_RESOLVER_NODE
+from .nodes.patient_resolver import patient_resolver_node
 from .nodes.consultation_saver import NODE_NAME as CONSULTATION_SAVER_NODE
 from .nodes.consultation_saver import consultation_saver_node
 from .nodes.report_extractor import NODE_NAME as REPORT_EXTRACTOR_NODE
@@ -85,6 +88,7 @@ def build_graph():
     builder.add_node(CONSULTATION_EXTRACTOR_NODE, consultation_extractor_node)
     builder.add_node(ACTIVITY_RESOLVER_NODE, activity_resolver_node)
     builder.add_node(ORCHESTRATOR_NODE, patient_orchestrator_node)
+    builder.add_node(PATIENT_RESOLVER_NODE, patient_resolver_node)
     builder.add_node(CONSULTATION_SAVER_NODE, consultation_saver_node)
     builder.add_node(REPORT_EXTRACTOR_NODE, report_extractor_node)
     builder.add_node(REPORT_SAVER_NODE, report_saver_node)
@@ -142,16 +146,20 @@ def build_graph():
             ROUTE_ACTIVITY_RESOLVER: ACTIVITY_RESOLVER_NODE,
             ROUTE_PATIENT_EXTRACTOR: CONSULTATION_EXTRACTOR_NODE,
             ROUTE_PATIENT_ORCHESTRATOR: ORCHESTRATOR_NODE,
+            ROUTE_PATIENT_RESOLVER: PATIENT_RESOLVER_NODE,
             ROUTE_CONSULTATION_SAVER: CONSULTATION_SAVER_NODE,
             ROUTE_GENERATOR: GENERATOR_NODE,
         },
     )
     builder.add_edge(CONSULTATION_EXTRACTOR_NODE, ORCHESTRATOR_NODE)
+    # consultation_extractor -> patient_orchestrator -> patient_resolver -> consultation_saver
+    # (patient_orchestrator skips straight to consultation_saver once patient identity
+    # is already resolved — see route_after_orchestrator)
+    builder.add_edge(PATIENT_RESOLVER_NODE, CONSULTATION_SAVER_NODE)
     builder.add_edge(CONSULTATION_SAVER_NODE, GENERATOR_NODE)
     builder.add_edge(CONFIRMATION_NODE, GENERATOR_NODE)
     builder.add_edge(GENERATOR_NODE, END)
 
-    # TODO: should check for writing in redis
     return builder.compile(checkpointer=InMemorySaver(serde=CHECKPOINT_SERDE))
 
 

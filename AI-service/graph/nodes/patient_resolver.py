@@ -1,6 +1,9 @@
-from langchain_core.messages import SystemMessage
+from typing import Optional
+
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import interrupt
+from pydantic import BaseModel, Field
 
 from db.patient_search import search_patients
 
@@ -29,6 +32,24 @@ PATIENT_MATCH_QUESTION_PROMPT = (
     "which one they're referring to. Do not add anything beyond the "
     "candidate bullets and that closing question."
 )
+
+PATIENT_MATCH_ANSWER_PROMPT = (
+    "The doctor was just asked which of several existing patient records they "
+    "mean, or whether this is a new patient. Given their reply below and the "
+    "numbered candidate list, decide which candidate they mean.\n"
+    "Set candidate_index to the matching candidate's number, or leave it null "
+    "if the doctor means a new patient not in the list."
+)
+
+
+class PatientMatchAnswer(BaseModel):
+    candidate_index: Optional[int] = Field(
+        default=None,
+        description=(
+            "0-based index into the candidate list the doctor is referring to. "
+            "Null if they mean a new patient not in the list."
+        ),
+    )
 
 
 def _describe_candidate(candidate: dict) -> str:
@@ -80,6 +101,33 @@ def _generate_match_question(candidates: list[dict]) -> str:
     return response.content
 
 
+def _resolve_match_answer(answer: str, candidates: list[dict]) -> Optional[int]:
+    """Parse the doctor's free-text reply against the numbered candidate list.
+
+    Returns the matching candidate's index, or None for "new patient". Always
+    forces a choice — see the TODO at the call site for what's deferred.
+    """
+    candidate_lines = "\n".join(
+        f"{i}: {_describe_candidate(c)}" for i, c in enumerate(candidates)
+    )
+    decision = (
+        get_llm(temperature=0)
+        .with_structured_output(PatientMatchAnswer)
+        .invoke(
+            [
+                SystemMessage(content=PATIENT_MATCH_ANSWER_PROMPT),
+                SystemMessage(content=f"Candidates:\n{candidate_lines}"),
+                HumanMessage(content=answer),
+            ]
+        )
+    )
+
+    if decision.candidate_index is None or not (0 <= decision.candidate_index < len(candidates)):
+        return None
+
+    return decision.candidate_index
+
+
 def patient_resolver_node(state: AssistantState, config: RunnableConfig):
     doctor = DoctorContext(
         **{
@@ -92,7 +140,7 @@ def patient_resolver_node(state: AssistantState, config: RunnableConfig):
 
     candidates = search_patients(doctor.id, patient)
     case = decide_patient_match(candidates)
-
+    
     if case == PATIENT_MATCH_NONE:
         return {
             "patient_candidates": candidates,
@@ -109,12 +157,25 @@ def patient_resolver_node(state: AssistantState, config: RunnableConfig):
 
     question = _generate_match_question(candidates)
 
-    # Fires the interrupt and pauses the graph here. Parsing the doctor's
-    # reply (resumed below), and the resulting link/create, is step 2 — not
-    # implemented yet.
-    interrupt({"type": INTERRUPT_PATIENT_MATCH, "question": question})
+    # Fires the interrupt and pauses the graph here until resumed with the
+    # doctor's free-text reply.
+    resumed = interrupt({"type": INTERRUPT_PATIENT_MATCH, "question": question})
+
+    # TODO: doesn't yet handle an unclear/unrelated reply, re-asking, loop
+    # guards, or "doctor named someone not in the list" — those are deferred.
+    # The parse below always forces a choice: the closest candidate, or new
+    # patient.
+    match_index = _resolve_match_answer(resumed["answer"], candidates)
+
+    if match_index is None:
+        return {
+            "patient_candidates": candidates,
+            "patient_match_case": case,
+            "create_new_patient": True,
+        }
 
     return {
         "patient_candidates": candidates,
         "patient_match_case": case,
+        "resolved_patient_id": candidates[match_index]["patient"].id,
     }

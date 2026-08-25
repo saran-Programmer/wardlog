@@ -24,6 +24,7 @@ from graph.constants import (
     FILE_PATH_KEY,
     INTERRUPT_CONFIRMATION,
     INTERRUPT_DISAMBIGUATION,
+    INTERRUPT_PATIENT_MATCH,
 )
 from graph.nodes.llm import get_llm
 from graph.prompts.title_prompt import TITLE_SYSTEM_PROMPT
@@ -67,6 +68,16 @@ def resume_disambiguation(
     )
     config = {"configurable": {"thread_id": str(conversation_id), **doctor.model_dump()}}
     result = graph.invoke(Command(resume=resume_value), config)
+    return _finalize(conversation_id, result)
+
+
+def resume_patient_match(conversation_id: UUID, doctor: DoctorContext, answer: str) -> dict:
+    """`answer` is the doctor's free-text reply to the patient-match question
+    fired by patient_resolver_node's interrupt — naming an existing candidate
+    or indicating this is a new patient. Parsed by the resolver itself on
+    resume, matching its interrupt contract in patient_resolver.py."""
+    config = {"configurable": {"thread_id": str(conversation_id), **doctor.model_dump()}}
+    result = graph.invoke(Command(resume={"answer": answer}), config)
     return _finalize(conversation_id, result)
 
 
@@ -118,6 +129,13 @@ def _finalize(conversation_id: UUID, result: dict) -> dict:
                 "interrupt_type": INTERRUPT_DISAMBIGUATION,
                 "options": payload["options"],
                 "allow_query": payload["allow_query"],
+            }
+
+        if payload["type"] == INTERRUPT_PATIENT_MATCH:
+            return {
+                "status": "interrupt",
+                "interrupt_type": INTERRUPT_PATIENT_MATCH,
+                "question": payload["question"],
             }
 
         raise ValueError(f"Unhandled interrupt type: {payload.get('type')!r}")

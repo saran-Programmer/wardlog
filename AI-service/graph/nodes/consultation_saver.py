@@ -25,8 +25,11 @@ def consultation_saver_node(state: AssistantState, config: RunnableConfig):
     )
     resolved_activity_id = state["resolved_activity_id"]
     consultation = state["consultation"]
+    resolved_patient_id = state.get("resolved_patient_id")
 
-    patient_id = save_consultation(doctor.id, resolved_activity_id, consultation)
+    patient_id = save_consultation(
+        doctor.id, resolved_activity_id, consultation, patient_id=resolved_patient_id
+    )
 
     patient = consultation.patient
     publish_patient(
@@ -38,14 +41,15 @@ def consultation_saver_node(state: AssistantState, config: RunnableConfig):
         drugs=consultation.drugs,
     )
 
-    try:
-        index_patient(patient_id, doctor.id, patient)
-    except Exception:
-        logger.error(
-            "OpenSearch indexing failed: patient_id=%s doctor_id=%s — data saved in Neo4j but indexing failed",
-            patient_id,
-            doctor.id,
-            exc_info=True,
-        )
+    if resolved_patient_id is None:
+        try:
+            index_patient(patient_id, doctor.id, patient)
+        except Exception:
+            logger.error(
+                "OpenSearch indexing failed: patient_id=%s doctor_id=%s — data saved in Neo4j but indexing failed",
+                patient_id,
+                doctor.id,
+                exc_info=True,
+            )
 
     return {"consultation_saved": consultation}
