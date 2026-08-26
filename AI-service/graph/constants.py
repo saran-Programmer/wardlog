@@ -24,6 +24,7 @@ ROUTE_REPORT_SAVER: Final = "report_saver"
 ROUTE_PATIENT_DETAILS: Final = "patient_details"
 ROUTE_PATIENT_DETAILS_GENERATOR: Final = "patient_details_generator"
 ROUTE_ACTIVITY_DETAILS: Final = "activity_details"
+ROUTE_DATA_QUERY: Final = "data_query"
 
 # additional_kwargs key on a HumanMessage carrying a supplied document's path
 # (dev CLI only — parsed from the `file (path): message` input format).

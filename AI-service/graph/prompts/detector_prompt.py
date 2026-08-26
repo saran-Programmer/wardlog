@@ -44,31 +44,20 @@ PATIENT_EXTRACTOR_ROUTE = (
     'I log a diagnosis", "remind me about ACL protocols".'
 )
 
-PATIENT_DETAILS_ROUTE = (
-    'Route "patient_details" — the patient details lookup.\n'
-    "Choose this when the doctor is ASKING ABOUT an existing patient rather "
-    "than recording new information — e.g. wanting to know a patient's "
-    "history, past visits, diagnoses, medications, surgeries, or reports.\n"
-    'Examples: "tell me about Uma", "what did I prescribe Uma last time", '
-    '"what is Marcus\'s history", "when did I last see Uma", "what were '
-    'Uma\'s reports".\n'
-    "Do NOT choose this when the doctor is RECORDING new patient "
-    'information (that is the "patient" route) — this route is for '
-    "questions/lookups only."
-)
-
-ACTIVITY_DETAILS_ROUTE = (
-    'Route "activity_details" — the activity details lookup.\n'
-    "Choose this when the doctor is ASKING ABOUT an activity they already "
-    "logged — what happened during it, which patients they saw, what was "
-    "diagnosed or prescribed in it.\n"
-    'Examples: "what did I do in my clinic block yesterday", "which patients '
-    'did I see last Tuesday", "what happened in that surgery block", "who '
-    'did I see this morning".\n'
-    "Do NOT choose this when the doctor is RECORDING a new activity (that is "
-    '"extract"), or asking about a specific PATIENT\'s history (that is '
-    '"patient_details"). This route is for questions about a particular '
-    "activity/session."
+DATA_QUERY_ROUTE = (
+    'Route "data_query" — existing-data lookup.\n'
+    "Choose this whenever the doctor is ASKING FOR information that already "
+    "exists in the system, rather than recording new information or making "
+    "general conversation. If the message is a question whose answer must "
+    "come from the doctor's previously stored data — patients, activities, "
+    "visits, diagnoses, medications, surgeries, reports, or anything derived "
+    "from them — it belongs here.\n"
+    'Examples: "tell me about Uma", "what did I prescribe last time", "who '
+    'did I see this morning", "how many patients this week", "what happened '
+    'in that surgery block".\n'
+    "Do NOT choose this when the doctor is RECORDING new patient information "
+    '(the "patient" route) or a new activity (the "extract" route). This '
+    "route is for retrieving existing data only."
 )
 
 CHAT_ROUTE = (
@@ -95,9 +84,9 @@ LATEST_MESSAGE_FOCUS = (
 CLOSING = (
     "Pick exactly one route based on what the latest message is primarily "
     "about. If the message clearly fits 'extract' (the doctor's own activity), "
-    "'patient' (a specific patient they saw), 'patient_details' (asking "
-    "about an existing patient), or 'activity_details' (asking about a "
-    "logged activity), prefer that over 'chat'. Otherwise choose 'chat'.\n"
+    "'patient' (a specific patient they saw), or 'data_query' (asking about "
+    "an existing patient or a logged activity), prefer that over 'chat'. "
+    "Otherwise choose 'chat'.\n"
     "Do not explain your reasoning. Return only the route."
 )
 
@@ -108,9 +97,7 @@ DETECTOR_SYSTEM_PROMPT = (
     + "\n\n"
     + PATIENT_EXTRACTOR_ROUTE
     + "\n\n"
-    + PATIENT_DETAILS_ROUTE
-    + "\n\n"
-    + ACTIVITY_DETAILS_ROUTE
+    + DATA_QUERY_ROUTE
     + "\n\n"
     + CHAT_ROUTE
     + "\n\n"
