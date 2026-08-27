@@ -23,6 +23,20 @@ class DataQueryPrompt(BasePrompt):
         "An empty filters list returns every logged activity."
     )
 
+    INCLUDE_RULE = (
+        "Optionally pass `include`, a list of related data to fetch alongside "
+        "the matched activities, drawn from: \"consultations\", \"patients\", "
+        '"diagnoses", "drugs", "surgery_type". Each matched activity comes back '
+        "with its consultations nested under it; \"patients\"/\"diagnoses\"/"
+        '"drugs"/"surgery_type" each populate that one field on every nested '
+        'consultation (e.g. include=["patients"] returns each consultation '
+        "with only its patient filled in, not diagnoses/drugs/surgery_type). "
+        'Use this when the doctor asks about who/what happened during an '
+        'activity, e.g. "what patients did I see in Tuesday\'s clinic block" -> '
+        'filter activities to that clinic block and include=["patients"]. Omit '
+        "or leave empty when only the activities themselves are needed."
+    )
+
     TOOL_USE_RULE = (
         "Use the current date/time below to resolve relative expressions like "
         '"yesterday", "this morning", or "last week" into concrete ISO datetime '
@@ -31,4 +45,4 @@ class DataQueryPrompt(BasePrompt):
     )
 
     def _content(self, doctor: DoctorContext) -> list[str]:
-        return [self.BASE_PROMPT, self.FILTERS_RULE, self.TOOL_USE_RULE]
+        return [self.BASE_PROMPT, self.FILTERS_RULE, self.INCLUDE_RULE, self.TOOL_USE_RULE]

@@ -1,5 +1,6 @@
 import json
 import logging
+from typing import Optional
 
 from langchain_core.messages import SystemMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
@@ -7,7 +8,7 @@ from langchain_core.tools import tool
 
 from db.activity_query import query_activities
 
-from ..models.activity import Activity
+from ..models.activity_query_result import ActivityResult
 from ..prompts.data_query_prompt import DataQueryPrompt
 from ..state import AssistantState
 from .details_common import build_doctor_context, describe_activity
@@ -29,15 +30,21 @@ def _build_query_activities_tool(doctor_id: str):
     """
 
     @tool
-    def query_activities_tool(filters: list[dict]) -> list[Activity]:
+    def query_activities_tool(
+        filters: list[dict], include: Optional[list[str]] = None
+    ) -> list[ActivityResult]:
         """Look up the doctor's logged Activity records via structured filters.
 
         filters: a list of filter objects, each shaped
         {"field": ..., "operator": ..., "value": ...}, AND-ed together. See the
         system prompt for the allowed fields, operators, and value shapes. An
         empty list returns every logged activity.
+
+        include: optional list of related data to fetch alongside each
+        matched activity. See the system prompt for the allowed values. Omit
+        or leave empty to fetch activities only.
         """
-        return query_activities(doctor_id, filters)
+        return query_activities(doctor_id, filters, include)
 
     return query_activities_tool
 
@@ -51,7 +58,7 @@ def data_query_node(state: AssistantState, config: RunnableConfig):
 
     llm = get_llm().bind_tools([activity_tool])
 
-    fetched_activities: list[Activity] = []
+    fetched_activities: list[ActivityResult] = []
 
     for _ in range(MAX_TOOL_ITERATIONS):
         response = llm.invoke(messages)
@@ -100,7 +107,7 @@ def data_query_node(state: AssistantState, config: RunnableConfig):
         return {"activity_not_found": True}
 
     content = "\n".join(
-        f"- {describe_activity(a.name, a.start, a.end, a.location, a.notes)}"
+        f"- {describe_activity(a.activity.name, a.activity.start, a.activity.end, a.activity.location, a.activity.notes, a.consultations)}"
         for a in fetched_activities
     )
 
