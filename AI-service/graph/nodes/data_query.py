@@ -7,12 +7,14 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 
 from db.activity_query import query_activities
+from db.patient_history_fetcher import get_patient_history
 from db.patient_query import query_patients
 
 from ..models.activity_query_result import ActivityResult
+from ..models.patient_history import PatientHistory
 from ..prompts.data_query_prompt import DataQueryPrompt
 from ..state import AssistantState
-from .details_common import build_doctor_context, describe_activity
+from .details_common import ACTIVITY_LABELS, build_doctor_context, describe_activity, format_datetime
 from .llm import get_llm
 
 NODE_NAME = "data_query"
@@ -73,7 +75,15 @@ def _build_query_patients_tool(doctor_id: str):
         have information for. Omitting all three returns a broad set of the
         doctor's patients.
         """
-        return query_patients(doctor_id, name=name, age=age, sex=sex)
+        candidates = query_patients(doctor_id, name=name, age=age, sex=sex)
+
+        for candidate in candidates:
+            patient_id = candidate["patient"].id
+            candidate["history"] = (
+                get_patient_history(doctor_id, patient_id) if patient_id else None
+            )
+
+        return candidates
 
     return query_patients_tool
 
@@ -90,7 +100,38 @@ def _describe_patient(entry: dict) -> str:
     if details:
         header += f" ({', '.join(details)})"
     header += f" — match score {entry['match_score']}"
-    return header
+
+    history: Optional[PatientHistory] = entry.get("history")
+    if history is None:
+        return header
+
+    lines = [header]
+
+    if history.consultations:
+        lines.append("  Visit history:")
+        for c in history.consultations:
+            visit = c.visit
+            label = ACTIVITY_LABELS.get(visit.name, visit.name or "visit") if visit else "visit"
+            when = format_datetime(visit.start) if visit and visit.start else "unknown date"
+            lines.append(f"  - {label} on {when}")
+            if c.diagnoses:
+                lines.append(f"    Diagnoses: {', '.join(c.diagnoses)}")
+            if c.drugs:
+                lines.append(f"    Drugs: {', '.join(c.drugs)}")
+            if c.surgery_type:
+                lines.append(f"    Surgery type: {c.surgery_type}")
+
+    if history.reports:
+        lines.append("  Reports:")
+        for r in history.reports:
+            report_line = f"  - {r.report_type or 'report'}"
+            if r.report_date:
+                report_line += f" ({r.report_date})"
+            lines.append(report_line)
+            if r.findings:
+                lines.append(f"    Findings: {r.findings}")
+
+    return "\n".join(lines)
 
 
 def data_query_node(state: AssistantState, config: RunnableConfig):
@@ -140,6 +181,11 @@ def data_query_node(state: AssistantState, config: RunnableConfig):
                                 {
                                     "patient": p["patient"].model_dump(mode="json"),
                                     "match_score": p["match_score"],
+                                    "history": (
+                                        p["history"].model_dump(mode="json")
+                                        if p["history"] is not None
+                                        else None
+                                    ),
                                 }
                                 for p in patients
                             ]
