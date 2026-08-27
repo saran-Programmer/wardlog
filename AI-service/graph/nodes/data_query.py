@@ -7,6 +7,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 
 from db.activity_query import query_activities
+from db.patient_query import query_patients
 
 from ..models.activity_query_result import ActivityResult
 from ..prompts.data_query_prompt import DataQueryPrompt
@@ -49,16 +50,61 @@ def _build_query_activities_tool(doctor_id: str):
     return query_activities_tool
 
 
+def _build_query_patients_tool(doctor_id: str):
+    """Build a query_patients tool scoped to one doctor.
+
+    Built fresh per node invocation so doctor_id is captured per-request via
+    closure rather than exposed as a tool argument the LLM can set — the LLM
+    only ever sees/supplies name/age/sex.
+    """
+
+    @tool
+    def query_patients_tool(
+        name: Optional[str] = None,
+        age: Optional[int] = None,
+        sex: Optional[str] = None,
+    ) -> list[dict]:
+        """Look up the doctor's Patient records by optional name/age/sex.
+
+        name: fuzzy-matched against patient names.
+        age: soft boost toward patients within a few years of this age.
+        sex: soft boost toward patients of this sex ("male" or "female").
+        All three are optional and can be combined; omit any filter you don't
+        have information for. Omitting all three returns a broad set of the
+        doctor's patients.
+        """
+        return query_patients(doctor_id, name=name, age=age, sex=sex)
+
+    return query_patients_tool
+
+
+def _describe_patient(entry: dict) -> str:
+    patient = entry["patient"]
+    details = []
+    if patient.age is not None:
+        details.append(f"{patient.age} years old")
+    if patient.sex:
+        details.append(patient.sex)
+
+    header = patient.name or "Unnamed patient"
+    if details:
+        header += f" ({', '.join(details)})"
+    header += f" — match score {entry['match_score']}"
+    return header
+
+
 def data_query_node(state: AssistantState, config: RunnableConfig):
     doctor = build_doctor_context(config)
     activity_tool = _build_query_activities_tool(doctor.id)
+    patient_tool = _build_query_patients_tool(doctor.id)
 
     system_prompt = DataQueryPrompt().build(doctor)
     messages = [SystemMessage(content=system_prompt), *state["messages"]]
 
-    llm = get_llm().bind_tools([activity_tool])
+    llm = get_llm().bind_tools([activity_tool, patient_tool])
 
     fetched_activities: list[ActivityResult] = []
+    fetched_patients: list[dict] = []
 
     for _ in range(MAX_TOOL_ITERATIONS):
         response = llm.invoke(messages)
@@ -68,6 +114,41 @@ def data_query_node(state: AssistantState, config: RunnableConfig):
             break
 
         for call in response.tool_calls:
+            if call["name"] == "query_patients_tool":
+                args = call["args"]
+                try:
+                    patients = patient_tool.invoke(args)
+                except ValueError as exc:
+                    logger.warning(
+                        "data_query invalid patient query: doctor_id=%s args=%s error=%s",
+                        doctor.id, args, exc,
+                    )
+                    messages.append(
+                        ToolMessage(content=f"Error: {exc}", tool_call_id=call["id"])
+                    )
+                    continue
+
+                fetched_patients.extend(patients)
+                logger.info(
+                    "data_query fetched patients: doctor_id=%s args=%s -> %s",
+                    doctor.id, args, patients,
+                )
+                messages.append(
+                    ToolMessage(
+                        content=json.dumps(
+                            [
+                                {
+                                    "patient": p["patient"].model_dump(mode="json"),
+                                    "match_score": p["match_score"],
+                                }
+                                for p in patients
+                            ]
+                        ),
+                        tool_call_id=call["id"],
+                    )
+                )
+                continue
+
             filters = call["args"].get("filters", [])
             try:
 
@@ -103,12 +184,13 @@ def data_query_node(state: AssistantState, config: RunnableConfig):
             MAX_TOOL_ITERATIONS, doctor.id,
         )
 
-    if not fetched_activities:
+    if not fetched_activities and not fetched_patients:
         return {"activity_not_found": True}
 
-    content = "\n".join(
+    content_lines = [
         f"- {describe_activity(a.activity.name, a.activity.start, a.activity.end, a.activity.location, a.activity.notes, a.consultations)}"
         for a in fetched_activities
-    )
+    ]
+    content_lines += [f"- {_describe_patient(p)}" for p in fetched_patients]
 
-    return {"activity_generated_content": content}
+    return {"activity_generated_content": "\n".join(content_lines)}

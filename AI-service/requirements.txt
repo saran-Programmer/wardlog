@@ -10,6 +10,7 @@ pydantic-settings
 python-dotenv
 neo4j
 opensearch-py
+jellyfish
 pymupdf
 sqlalchemy
 psycopg[binary]

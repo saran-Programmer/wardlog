@@ -37,7 +37,8 @@ MAX_DISAMBIGUATION_CANDIDATES = 5
 CHOICE_QUERY = "query"
 INTERRUPT_CONFIRMATION: Final = "confirmation"
 INTERRUPT_DISAMBIGUATION: Final = "disambiguation"
-PATIENT_MATCH_THRESHOLD = 70
+
+PATIENT_MATCH_THRESHOLD = 0.7
 
 # Patient resolver decision outcomes — which case patient_resolver_node landed
 # in after searching for candidates.

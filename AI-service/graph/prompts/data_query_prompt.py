@@ -6,9 +6,11 @@ class DataQueryPrompt(BasePrompt):
     BASE_PROMPT = (
         "You look up the doctor's logged ACTIVITIES (surgery blocks, clinic "
         "blocks, on-call shifts, on-site on-call shifts) by calling the "
-        "`query_activities_tool` tool with structured filters. You have no other "
-        "source of information about their activities — call the tool to find "
-        "out."
+        "`query_activities_tool` tool with structured filters, and their "
+        "PATIENT records by calling the `query_patients_tool` tool with "
+        "optional name/age/sex filters. You have no other source of "
+        "information about their activities or patients — call the "
+        "appropriate tool to find out."
     )
 
     FILTERS_RULE = (
@@ -37,12 +39,30 @@ class DataQueryPrompt(BasePrompt):
         "or leave empty when only the activities themselves are needed."
     )
 
+    PATIENT_RULE = (
+        "To look up the doctor's PATIENT records, call `query_patients_tool` "
+        "with optional filters:\n"
+        '- name: fuzzy-matched against patient names.\n'
+        "- age: soft-matched, favoring patients within a few years of the "
+        "given age.\n"
+        '- sex: soft-matched, "male" or "female".\n'
+        "All three are optional and independent — omit any filter you don't "
+        "have information for. Omitting all three returns a broad set of the "
+        "doctor's patients."
+    )
+
     TOOL_USE_RULE = (
         "Use the current date/time below to resolve relative expressions like "
         '"yesterday", "this morning", or "last week" into concrete ISO datetime '
-        "values or ranges. Call the tool as many times as needed, then stop "
-        "calling it once you have enough information."
+        "values or ranges. Call the tools as many times as needed, then stop "
+        "calling them once you have enough information."
     )
 
     def _content(self, doctor: DoctorContext) -> list[str]:
-        return [self.BASE_PROMPT, self.FILTERS_RULE, self.INCLUDE_RULE, self.TOOL_USE_RULE]
+        return [
+            self.BASE_PROMPT,
+            self.FILTERS_RULE,
+            self.INCLUDE_RULE,
+            self.PATIENT_RULE,
+            self.TOOL_USE_RULE,
+        ]
