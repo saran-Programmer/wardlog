@@ -3,6 +3,7 @@ from typing import Annotated, NotRequired, Optional, TypedDict
 from langgraph.graph.message import add_messages
 
 from .models.activity import Activity
+from .models.activity_query_result import ActivityResult
 from .models.blocked_activity import BlockedActivity
 from .models.consultation import Consultation
 from .models.patient_details import PatientDetails
@@ -32,3 +33,9 @@ class AssistantState(TypedDict):
     patient_details_data: NotRequired[Optional[PatientDetails]]
     activity_not_found: NotRequired[Optional[bool]]
     activity_generated_content: NotRequired[Optional[str]]
+    fetched_activities: NotRequired[Optional[list[ActivityResult]]]
+    fetched_patients: NotRequired[Optional[list[dict]]]
+    patient_candidates: NotRequired[Optional[list[dict]]]
+    patient_match_case: NotRequired[Optional[str]]
+    resolved_patient_id: NotRequired[Optional[str]]
+    create_new_patient: NotRequired[Optional[bool]]

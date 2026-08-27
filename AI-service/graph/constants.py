@@ -14,6 +14,7 @@ ROUTE_PATIENT: Final = "patient"
 ROUTE_ACTIVITY_RESOLVER: Final = "activity_resolver"
 ROUTE_PATIENT_EXTRACTOR: Final = "patient_extractor"
 ROUTE_PATIENT_ORCHESTRATOR: Final = "patient_orchestrator"
+ROUTE_PATIENT_RESOLVER: Final = "patient_resolver"
 ROUTE_CONSULTATION_SAVER: Final = "consultation_saver"
 ROUTE_GENERATOR: Final = "generator"
 ROUTE_CONFIRMATION: Final = "confirmation"
@@ -23,6 +24,8 @@ ROUTE_REPORT_SAVER: Final = "report_saver"
 ROUTE_PATIENT_DETAILS: Final = "patient_details"
 ROUTE_PATIENT_DETAILS_GENERATOR: Final = "patient_details_generator"
 ROUTE_ACTIVITY_DETAILS: Final = "activity_details"
+ROUTE_DATA_QUERY: Final = "data_query"
+ROUTE_ANSWER: Final = "answer"
 
 # additional_kwargs key on a HumanMessage carrying a supplied document's path
 # (dev CLI only — parsed from the `file (path): message` input format).
@@ -32,13 +35,16 @@ FILE_PATH_KEY = "file_path"
 # doctor for disambiguation before asking them to narrow the search instead.
 MAX_DISAMBIGUATION_CANDIDATES = 5
 
-# Resume choice sentinel: doctor sent a follow-up query instead of picking
-# one of the presented activity candidates.
 CHOICE_QUERY = "query"
-
-# Interrupt payload discriminator: which kind of pending decision the doctor
-# is being asked to resolve. Confirmation payloads are a proposed-activity
-# list; disambiguation payloads are a set of candidate activities to choose
-# between. `_finalize`/`resume` branch on this instead of assuming one shape.
 INTERRUPT_CONFIRMATION: Final = "confirmation"
 INTERRUPT_DISAMBIGUATION: Final = "disambiguation"
+
+PATIENT_MATCH_THRESHOLD = 0.7
+
+# Patient resolver decision outcomes — which case patient_resolver_node landed
+# in after searching for candidates.
+PATIENT_MATCH_NONE: Final = "none"  # no candidates — create a new patient
+PATIENT_MATCH_CLEAR: Final = "clear"  # one confident match — link to it
+PATIENT_MATCH_AMBIGUOUS: Final = "ambiguous"  # unclear — ask the doctor
+
+INTERRUPT_PATIENT_MATCH: Final = "patient_match"

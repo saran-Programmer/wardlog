@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 
 class PatientSummary(BaseModel):
+    id: Optional[str] = None
     name: Optional[str] = None
     age: Optional[int] = None
     sex: Optional[str] = None

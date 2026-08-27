@@ -5,6 +5,7 @@ from ..constants import (
     ROUTE_CONSULTATION_SAVER,
     ROUTE_GENERATOR,
     ROUTE_PATIENT_EXTRACTOR,
+    ROUTE_PATIENT_RESOLVER,
 )
 from ..state import AssistantState
 from .activity_disambiguation import resolve_candidates
@@ -36,5 +37,8 @@ def route_after_orchestrator(state: AssistantState) -> str:
 
     if state.get("consultation") is None:
         return ROUTE_PATIENT_EXTRACTOR
+
+    if state.get("resolved_patient_id") is None and not state.get("create_new_patient"):
+        return ROUTE_PATIENT_RESOLVER
 
     return ROUTE_CONSULTATION_SAVER

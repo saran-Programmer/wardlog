@@ -18,13 +18,23 @@ class Patient(BaseModel):
     age: Optional[int] = Field(default=None, description="the patient's age as stated")
 
     sex: Optional[str] = Field(
-        default=None, 
+        default=None,
         description=(
             "the patient's sex: 'male' or 'female'. Take it if the doctor states it "
             "directly, or infer it from clear gendered pronouns the doctor uses for the "
             "patient (e.g. 'she'/'her' → female, 'he'/'him' → male). If neither a stated "
             "sex nor a clear gendered pronoun is present, leave null — do not guess from "
             "the name alone."))
+
+    patient_reference_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "the patient's hospital-assigned ID number or code (e.g. MRN, UHID), "
+            "captured only if the doctor explicitly states one (e.g. 'MRN 4432', "
+            "'UHID 998211'). Do not invent or guess it — if none is stated, leave "
+            "null."
+        ),
+    )
 
 
 class Consultation(BaseModel):
