@@ -4,6 +4,7 @@ from langgraph.graph import END, START, StateGraph
 
 from .constants import (
     ROUTE_ACTIVITY_RESOLVER,
+    ROUTE_ANSWER,
     ROUTE_CHAT,
     ROUTE_CONFIRMATION,
     ROUTE_CONSULTATION_SAVER,
@@ -18,6 +19,8 @@ from .constants import (
     ROUTE_REPORT_EXTRACTOR,
     ROUTE_REPORT_SAVER,
 )
+from .nodes.answer_synthesizer import NODE_NAME as ANSWER_NODE
+from .nodes.answer_synthesizer import answer_synthesizer_node
 from .nodes.activity_confirmation import NODE_NAME as CONFIRMATION_NODE
 from .nodes.activity_confirmation import confirmation_node
 from .nodes.detector import NODE_NAME as DETECTOR_NODE
@@ -51,7 +54,7 @@ from .nodes.report_extractor import (
 from .nodes.report_saver import NODE_NAME as REPORT_SAVER_NODE
 from .nodes.report_saver import report_saver_node
 from .nodes.data_query import NODE_NAME as DATA_QUERY_NODE
-from .nodes.data_query import data_query_node
+from .nodes.data_query import data_query_node, route_after_data_query
 from .state import AssistantState
 
 # Explicitly allowlisted so checkpoint (de)serialization doesn't warn/block on
@@ -62,6 +65,9 @@ CHECKPOINT_SERDE = JsonPlusSerializer(
         ("graph.models.consultation", "Consultation"),
         ("graph.models.report_extraction", "ReportExtraction"),
         ("graph.models.patient_details", "PatientDetails"),
+        ("graph.models.activity_query_result", "ActivityResult"),
+        ("graph.models.patient_details", "PatientSummary"),
+        ("graph.models.patient_history", "PatientHistory"),
     ]
 )
 
@@ -80,6 +86,7 @@ def build_graph():
     builder.add_node(REPORT_EXTRACTOR_NODE, report_extractor_node)
     builder.add_node(REPORT_SAVER_NODE, report_saver_node)
     builder.add_node(DATA_QUERY_NODE, data_query_node)
+    builder.add_node(ANSWER_NODE, answer_synthesizer_node)
 
     builder.add_conditional_edges(
         START,
@@ -108,7 +115,15 @@ def build_graph():
             ROUTE_DATA_QUERY: DATA_QUERY_NODE,
         },
     )
-    builder.add_edge(DATA_QUERY_NODE, GENERATOR_NODE)
+    builder.add_conditional_edges(
+        DATA_QUERY_NODE,
+        route_after_data_query,
+        {
+            ROUTE_ANSWER: ANSWER_NODE,
+            ROUTE_GENERATOR: GENERATOR_NODE,
+        },
+    )
+    builder.add_edge(ANSWER_NODE, GENERATOR_NODE)
     builder.add_conditional_edges(
         EXTRACTOR_NODE,
         route_after_activity_extractor,
@@ -127,9 +142,6 @@ def build_graph():
         },
     )
     builder.add_edge(CONSULTATION_EXTRACTOR_NODE, ORCHESTRATOR_NODE)
-    # consultation_extractor -> patient_orchestrator -> patient_resolver -> consultation_saver
-    # (patient_orchestrator skips straight to consultation_saver once patient identity
-    # is already resolved — see route_after_orchestrator)
     builder.add_edge(PATIENT_RESOLVER_NODE, CONSULTATION_SAVER_NODE)
     builder.add_edge(CONSULTATION_SAVER_NODE, GENERATOR_NODE)
     builder.add_edge(CONFIRMATION_NODE, GENERATOR_NODE)

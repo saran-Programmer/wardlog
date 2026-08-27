@@ -10,11 +10,11 @@ from db.activity_query import query_activities
 from db.patient_history_fetcher import get_patient_history
 from db.patient_query import query_patients
 
+from ..constants import ROUTE_ANSWER, ROUTE_GENERATOR
 from ..models.activity_query_result import ActivityResult
-from ..models.patient_history import PatientHistory
 from ..prompts.data_query_prompt import DataQueryPrompt
 from ..state import AssistantState
-from .details_common import ACTIVITY_LABELS, build_doctor_context, describe_activity, format_datetime
+from .details_common import build_doctor_context
 from .llm import get_llm
 
 NODE_NAME = "data_query"
@@ -86,52 +86,6 @@ def _build_query_patients_tool(doctor_id: str):
         return candidates
 
     return query_patients_tool
-
-
-def _describe_patient(entry: dict) -> str:
-    patient = entry["patient"]
-    details = []
-    if patient.age is not None:
-        details.append(f"{patient.age} years old")
-    if patient.sex:
-        details.append(patient.sex)
-
-    header = patient.name or "Unnamed patient"
-    if details:
-        header += f" ({', '.join(details)})"
-    header += f" — match score {entry['match_score']}"
-
-    history: Optional[PatientHistory] = entry.get("history")
-    if history is None:
-        return header
-
-    lines = [header]
-
-    if history.consultations:
-        lines.append("  Visit history:")
-        for c in history.consultations:
-            visit = c.visit
-            label = ACTIVITY_LABELS.get(visit.name, visit.name or "visit") if visit else "visit"
-            when = format_datetime(visit.start) if visit and visit.start else "unknown date"
-            lines.append(f"  - {label} on {when}")
-            if c.diagnoses:
-                lines.append(f"    Diagnoses: {', '.join(c.diagnoses)}")
-            if c.drugs:
-                lines.append(f"    Drugs: {', '.join(c.drugs)}")
-            if c.surgery_type:
-                lines.append(f"    Surgery type: {c.surgery_type}")
-
-    if history.reports:
-        lines.append("  Reports:")
-        for r in history.reports:
-            report_line = f"  - {r.report_type or 'report'}"
-            if r.report_date:
-                report_line += f" ({r.report_date})"
-            lines.append(report_line)
-            if r.findings:
-                lines.append(f"    Findings: {r.findings}")
-
-    return "\n".join(lines)
 
 
 def data_query_node(state: AssistantState, config: RunnableConfig):
@@ -233,10 +187,13 @@ def data_query_node(state: AssistantState, config: RunnableConfig):
     if not fetched_activities and not fetched_patients:
         return {"activity_not_found": True}
 
-    content_lines = [
-        f"- {describe_activity(a.activity.name, a.activity.start, a.activity.end, a.activity.location, a.activity.notes, a.consultations)}"
-        for a in fetched_activities
-    ]
-    content_lines += [f"- {_describe_patient(p)}" for p in fetched_patients]
+    return {
+        "fetched_activities": fetched_activities,
+        "fetched_patients": fetched_patients,
+    }
 
-    return {"activity_generated_content": "\n".join(content_lines)}
+
+def route_after_data_query(state: AssistantState) -> str:
+    if state.get("activity_not_found"):
+        return ROUTE_GENERATOR
+    return ROUTE_ANSWER

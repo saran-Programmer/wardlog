@@ -58,6 +58,8 @@ def detector_node(state: AssistantState):
         "patient_details_data": None,
         "activity_not_found": None,
         "activity_generated_content": None,
+        "fetched_activities": [],
+        "fetched_patients": [],
     }
 
 
