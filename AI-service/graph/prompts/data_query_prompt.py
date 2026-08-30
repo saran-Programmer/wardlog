@@ -58,6 +58,25 @@ class DataQueryPrompt(BasePrompt):
         "calling them once you have enough information."
     )
 
+    GRAPH_STRUCTURE = (
+        "How the doctor's data is organized (so you know what can be asked "
+        "and how things connect):\n"
+        "- An ACTIVITY is a logged work block (surgery block, clinic block, "
+        "on-call, on-site on-call) with a start and end time.\n"
+        "- During an activity, the doctor has CONSULTATIONS — each "
+        "consultation is one patient encounter within that activity.\n"
+        "- Each consultation is linked to one PATIENT (name, age, sex).\n"
+        "- A consultation may record DIAGNOSES (conditions identified), "
+        "DRUGS (medications prescribed), and a SURGERY TYPE (the operation "
+        "performed, for surgical encounters).\n"
+        "- A PATIENT may also have REPORTS (report type, date, findings, "
+        "notes).\n"
+        "In short: Activity -> its Consultations -> each Consultation's "
+        "Patient, Diagnoses, Drugs, and Surgery type; and Patient -> Reports. "
+        "Activities are the doctor's schedule; patients and their clinical "
+        "details hang off the consultations inside those activities."
+    )
+
     def _content(self, doctor: DoctorContext) -> list[str]:
         return [
             self.BASE_PROMPT,
@@ -65,4 +84,5 @@ class DataQueryPrompt(BasePrompt):
             self.INCLUDE_RULE,
             self.PATIENT_RULE,
             self.TOOL_USE_RULE,
+            self.GRAPH_STRUCTURE
         ]
