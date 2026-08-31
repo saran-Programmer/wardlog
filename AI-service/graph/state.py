@@ -6,6 +6,7 @@ from .models.activity import Activity
 from .models.activity_query_result import ActivityResult
 from .models.blocked_activity import BlockedActivity
 from .models.consultation import Consultation
+from .models.guard_verdict import GuardVerdict
 from .models.patient_details import PatientDetails
 from .models.report_extraction import ReportExtraction
 
@@ -13,6 +14,7 @@ from .models.report_extraction import ReportExtraction
 class AssistantState(TypedDict):
 
     messages: Annotated[list, add_messages]
+    guard: NotRequired[Optional[GuardVerdict]]
     route: str
     activities: list[Activity]
     activity_candidates: list[Activity]

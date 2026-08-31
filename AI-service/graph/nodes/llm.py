@@ -6,6 +6,8 @@ VISION_MODEL = "qwen/qwen3.6-27b"
 TTS_MODEL = "canopylabs/orpheus-v1-english"
 TTS_VOICE = "diana"
 STT_MODEL = "whisper-large-v3"
+SAFETY_MODEL = "openai/gpt-oss-safeguard-20b"
+SCOPE_MODEL = "openai/gpt-oss-20b"
 
 # Reused across calls — reads GROQ_API_KEY from env once at import time.
 groq_client = Groq()
@@ -18,6 +20,20 @@ def get_llm(temperature: float = 0) -> ChatGroq:
     for more varied generation).
     """
     return ChatGroq(model=TEXT_MODEL, temperature=temperature, reasoning_effort=None)
+
+
+def get_safety_llm(temperature: float = 0) -> ChatGroq:
+    """Return a ChatGroq instance for the input guardrail's safety check.
+
+    gpt-oss-safeguard is a policy-following safety model — it's given a
+    policy as its system input and classifies content against it.
+    """
+    return ChatGroq(model=SAFETY_MODEL, temperature=temperature, reasoning_effort=None)
+
+
+def get_scope_llm(temperature: float = 0) -> ChatGroq:
+    """Return a ChatGroq instance for the input guardrail's scope check."""
+    return ChatGroq(model=SCOPE_MODEL, temperature=temperature, reasoning_effort=None)
 
 
 def get_vision_llm(temperature: float = 0) -> ChatGroq:
