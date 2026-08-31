@@ -10,8 +10,10 @@ from .constants import (
     ROUTE_CONSULTATION_SAVER,
     ROUTE_DATA_QUERY,
     ROUTE_DETECTOR,
+    ROUTE_END,
     ROUTE_EXTRACT,
     ROUTE_GENERATOR,
+    ROUTE_OUTPUT_FALLBACK,
     ROUTE_PATIENT,
     ROUTE_PATIENT_EXTRACTOR,
     ROUTE_PATIENT_ORCHESTRATOR,
@@ -49,16 +51,19 @@ from .nodes.report_extractor import NODE_NAME as REPORT_EXTRACTOR_NODE
 from .nodes.report_extractor import (
     report_extractor_node,
     route_after_report_extractor,
-    route_entry,
 )
 from .nodes.report_saver import NODE_NAME as REPORT_SAVER_NODE
 from .nodes.report_saver import report_saver_node
 from .nodes.data_query import NODE_NAME as DATA_QUERY_NODE
 from .nodes.data_query import data_query_node, route_after_data_query
+from .nodes.guard import NODE_NAME as GUARD_NODE
+from .nodes.guard import guard_node, route_after_guard
+from .nodes.output_guard import NODE_NAME as OUTPUT_GUARD_NODE
+from .nodes.output_guard import output_guard_node, route_after_output_guard
+from .nodes.output_fallback import NODE_NAME as OUTPUT_FALLBACK_NODE
+from .nodes.output_fallback import output_fallback_node
 from .state import AssistantState
 
-# Explicitly allowlisted so checkpoint (de)serialization doesn't warn/block on
-# our custom Activity model — see langgraph's LANGGRAPH_STRICT_MSGPACK gate.
 CHECKPOINT_SERDE = JsonPlusSerializer(
     allowed_msgpack_modules=[
         ("graph.models.activity", "Activity"),
@@ -68,12 +73,15 @@ CHECKPOINT_SERDE = JsonPlusSerializer(
         ("graph.models.activity_query_result", "ActivityResult"),
         ("graph.models.patient_details", "PatientSummary"),
         ("graph.models.patient_history", "PatientHistory"),
+        ("graph.models.guard_verdict", "GuardVerdict"),
+        ("graph.models.output_guard_verdict", "OutputGuardVerdict"),
     ]
 )
 
 
 def build_graph():
     builder = StateGraph(AssistantState)
+    builder.add_node(GUARD_NODE, guard_node)
     builder.add_node(DETECTOR_NODE, detector_node)
     builder.add_node(EXTRACTOR_NODE, activity_extractor_node)
     builder.add_node(CONFIRMATION_NODE, confirmation_node)
@@ -87,13 +95,17 @@ def build_graph():
     builder.add_node(REPORT_SAVER_NODE, report_saver_node)
     builder.add_node(DATA_QUERY_NODE, data_query_node)
     builder.add_node(ANSWER_NODE, answer_synthesizer_node)
+    builder.add_node(OUTPUT_GUARD_NODE, output_guard_node)
+    builder.add_node(OUTPUT_FALLBACK_NODE, output_fallback_node)
 
+    builder.add_edge(START, GUARD_NODE)
     builder.add_conditional_edges(
-        START,
-        route_entry,
+        GUARD_NODE,
+        route_after_guard,
         {
             ROUTE_REPORT_EXTRACTOR: REPORT_EXTRACTOR_NODE,
             ROUTE_DETECTOR: DETECTOR_NODE,
+            ROUTE_GENERATOR: GENERATOR_NODE,
         },
     )
     builder.add_conditional_edges(
@@ -145,7 +157,17 @@ def build_graph():
     builder.add_edge(PATIENT_RESOLVER_NODE, CONSULTATION_SAVER_NODE)
     builder.add_edge(CONSULTATION_SAVER_NODE, GENERATOR_NODE)
     builder.add_edge(CONFIRMATION_NODE, GENERATOR_NODE)
-    builder.add_edge(GENERATOR_NODE, END)
+    builder.add_edge(GENERATOR_NODE, OUTPUT_GUARD_NODE)
+    builder.add_conditional_edges(
+        OUTPUT_GUARD_NODE,
+        route_after_output_guard,
+        {
+            ROUTE_END: END,
+            ROUTE_GENERATOR: GENERATOR_NODE,
+            ROUTE_OUTPUT_FALLBACK: OUTPUT_FALLBACK_NODE,
+        },
+    )
+    builder.add_edge(OUTPUT_FALLBACK_NODE, END)
 
     return builder.compile(checkpointer=InMemorySaver(serde=CHECKPOINT_SERDE))
 

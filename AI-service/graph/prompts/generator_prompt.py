@@ -4,9 +4,11 @@ from ..config import DoctorContext
 from ..models.activity import Activity
 from ..models.blocked_activity import BlockedActivity
 from ..models.consultation import Consultation
+from ..models.guard_verdict import GuardVerdict
 from ..models.report_extraction import ReportExtraction
 from ..state import AssistantState
 from .base_prompt import BasePrompt
+from .capabilities import CAPABILITY_LIST
 
 
 ACTIVITY_LABELS = {
@@ -129,6 +131,16 @@ class GeneratorPrompt(BasePrompt):
         "- Speak to the doctor directly and naturally.\n"
         "- Keep responses conversational and concise.\n"
         "- You are not a medical advisor; don't give clinical or treatment advice."
+    )
+
+    CAPABILITIES_FRAGMENT = CAPABILITY_LIST
+
+    GENERATION_RETRY_FRAGMENT_TEMPLATE = (
+        "Your previous reply was rejected by the system's output guardrail: "
+        "{reason}\n\n"
+        "Regenerate your reply so it does not repeat this. Stay strictly "
+        "within the capabilities listed above, and do not offer, promise, or "
+        "imply anything outside them."
     )
 
     TONE_FRAGMENTS = {
@@ -301,6 +313,38 @@ class GeneratorPrompt(BasePrompt):
         "message."
     )
 
+    GUARD_BLOCKED_OVERRIDE = (
+        "This message was NOT processed — do not attempt it at all.\n"
+        "Do NOT answer, complete, or partially fulfill any part of the doctor's "
+        "message, even a part that looks reasonable on its own or that you could "
+        "easily answer. If the message mixed something reasonable with something "
+        "that isn't, do not cherry-pick the reasonable part and answer that either "
+        "— treat the whole message as not processed. Your entire reply must be "
+        "just the refusal and its short reason below, delivered in your tone."
+    )
+
+    GUARD_DISALLOWED_FRAGMENT_TEMPLATE = (
+        "Input blocked — unsafe or disallowed request:\n"
+        "The doctor's latest message was flagged: {reason}\n\n"
+        "Give a brief, polite refusal in your own voice, and include a short, "
+        "plain-language note on why — in your own words, not a verbatim quote of "
+        "the flag above — so the doctor understands what about their message "
+        "couldn't be actioned (e.g. it touches on patient safety, privacy, or "
+        "something outside what you're allowed to help with). Do NOT explain the "
+        "policy in detail and do NOT lecture or moralize. Then, if it fits, gently "
+        "steer the conversation back to logging their clinical work."
+    )
+
+    GUARD_OFF_TOPIC_FRAGMENT_TEMPLATE = (
+        "Input blocked — off-topic request:\n"
+        "The doctor's latest message is not about clinical logging: {reason}\n\n"
+        "Let them know, briefly and pleasantly, why you can't help with that "
+        "specific message — that you're built specifically to help them log "
+        "patients, consultations, procedures, and clinical activity, and this "
+        "falls outside that. Do NOT be preachy or apologise at length. Invite "
+        "them to tell you about their day or a patient instead."
+    )
+
     BLOCKED_FRAGMENT_TEMPLATE = (
         "Could not be logged:\n"
         "{items}\n\n"
@@ -315,10 +359,36 @@ class GeneratorPrompt(BasePrompt):
     )
 
     def build(self, doctor: DoctorContext, state: AssistantState) -> str:
-        parts = self._content(doctor, state)
+        guard = state.get("guard")
+        if guard is not None and not guard.processable:
+            parts = self._blocked_content(doctor, guard)
+        else:
+            parts = self._content(doctor, state)
+        parts.append(self.CAPABILITIES_FRAGMENT)
+
+        output_guard = state.get("output_guard")
+        if output_guard is not None and not output_guard.passed:
+            parts.append(
+                self.GENERATION_RETRY_FRAGMENT_TEMPLATE.format(reason=output_guard.reason)
+            )
+
         parts.append(self.doctor_info_block(doctor))
         parts.append(self.current_datetime_block())
         return "\n\n".join(parts)
+
+    def _blocked_content(self, doctor: DoctorContext, guard: GuardVerdict) -> list[str]:
+        parts = [self.ROLE, self.GUIDELINES, self.TONE_FRAGMENTS[doctor.tone]]
+        if doctor.rush:
+            parts.append(self.RUSH_FRAGMENT)
+
+        template = (
+            self.GUARD_DISALLOWED_FRAGMENT_TEMPLATE
+            if guard.category == "disallowed"
+            else self.GUARD_OFF_TOPIC_FRAGMENT_TEMPLATE
+        )
+        parts.append(template.format(reason=guard.reason))
+        parts.append(self.GUARD_BLOCKED_OVERRIDE)
+        return parts
 
     def _content(self, doctor: DoctorContext, state: AssistantState) -> list[str]:
         parts = [

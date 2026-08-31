@@ -22,4 +22,5 @@ def generator_node(state: AssistantState, config: RunnableConfig):
     llm = get_llm(temperature=0.5)
     reply = llm.invoke([SystemMessage(content=system_prompt), *state["messages"]])
 
-    return {"messages": [reply]}
+    attempts = state.get("generation_attempts", 0) + 1
+    return {"messages": [reply], "generation_attempts": attempts}

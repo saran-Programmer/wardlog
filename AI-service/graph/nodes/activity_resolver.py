@@ -1,6 +1,7 @@
 from datetime import datetime, time, timedelta
 from typing import Optional
 
+from groq import BadRequestError
 from langchain_core.messages import BaseMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
@@ -57,11 +58,16 @@ def resolve_activity_references(doctor: DoctorContext, messages: list[BaseMessag
     activity_details_generator_node (which wants every match, not just one)."""
     system_prompt = ActivityResolverPrompt().build(doctor)
 
-    ref = (
-        get_llm()
-        .with_structured_output(ActivityReference)
-        .invoke([SystemMessage(content=system_prompt), *messages])
-    )
+    try:
+        ref = (
+            get_llm()
+            .with_structured_output(ActivityReference)
+            .invoke([SystemMessage(content=system_prompt), *messages])
+        )
+    except BadRequestError as e:
+        if getattr(e, "body", {}).get("error", {}).get("code") == "tool_use_failed":
+            return []
+        raise
 
     lower, upper = _build_window(ref)
     return find_activities(doctor.id, ref.activity_type, lower, upper)
