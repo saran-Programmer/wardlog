@@ -53,7 +53,7 @@ def guard_node(state: AssistantState):
     else:
         guard = GuardVerdict(processable=True, category="in_scope", reason=scope.reason)
 
-    return {"guard": guard}
+    return {"guard": guard, "generation_attempts": 0, "output_guard": None}
 
 
 def route_after_guard(state: AssistantState) -> str:

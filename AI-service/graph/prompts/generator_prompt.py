@@ -8,6 +8,7 @@ from ..models.guard_verdict import GuardVerdict
 from ..models.report_extraction import ReportExtraction
 from ..state import AssistantState
 from .base_prompt import BasePrompt
+from .capabilities import CAPABILITY_LIST
 
 
 ACTIVITY_LABELS = {
@@ -130,6 +131,16 @@ class GeneratorPrompt(BasePrompt):
         "- Speak to the doctor directly and naturally.\n"
         "- Keep responses conversational and concise.\n"
         "- You are not a medical advisor; don't give clinical or treatment advice."
+    )
+
+    CAPABILITIES_FRAGMENT = CAPABILITY_LIST
+
+    GENERATION_RETRY_FRAGMENT_TEMPLATE = (
+        "Your previous reply was rejected by the system's output guardrail: "
+        "{reason}\n\n"
+        "Regenerate your reply so it does not repeat this. Stay strictly "
+        "within the capabilities listed above, and do not offer, promise, or "
+        "imply anything outside them."
     )
 
     TONE_FRAGMENTS = {
@@ -353,6 +364,14 @@ class GeneratorPrompt(BasePrompt):
             parts = self._blocked_content(doctor, guard)
         else:
             parts = self._content(doctor, state)
+        parts.append(self.CAPABILITIES_FRAGMENT)
+
+        output_guard = state.get("output_guard")
+        if output_guard is not None and not output_guard.passed:
+            parts.append(
+                self.GENERATION_RETRY_FRAGMENT_TEMPLATE.format(reason=output_guard.reason)
+            )
+
         parts.append(self.doctor_info_block(doctor))
         parts.append(self.current_datetime_block())
         return "\n\n".join(parts)

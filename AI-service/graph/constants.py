@@ -26,6 +26,12 @@ ROUTE_PATIENT_DETAILS_GENERATOR: Final = "patient_details_generator"
 ROUTE_ACTIVITY_DETAILS: Final = "activity_details"
 ROUTE_DATA_QUERY: Final = "data_query"
 ROUTE_ANSWER: Final = "answer"
+ROUTE_END: Final = "end"
+ROUTE_OUTPUT_FALLBACK: Final = "output_fallback"
+
+# Output guardrail: max times the generator may be retried after a failed
+# capability-scope check (not counting the initial generation).
+MAX_GENERATION_RETRIES: Final = 2
 
 # additional_kwargs key on a HumanMessage carrying a supplied document's path
 # (dev CLI only — parsed from the `file (path): message` input format).

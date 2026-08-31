@@ -7,6 +7,7 @@ from .models.activity_query_result import ActivityResult
 from .models.blocked_activity import BlockedActivity
 from .models.consultation import Consultation
 from .models.guard_verdict import GuardVerdict
+from .models.output_guard_verdict import OutputGuardVerdict
 from .models.patient_details import PatientDetails
 from .models.report_extraction import ReportExtraction
 
@@ -41,3 +42,5 @@ class AssistantState(TypedDict):
     patient_match_case: NotRequired[Optional[str]]
     resolved_patient_id: NotRequired[Optional[str]]
     create_new_patient: NotRequired[Optional[bool]]
+    output_guard: NotRequired[Optional[OutputGuardVerdict]]
+    generation_attempts: NotRequired[Optional[int]]
